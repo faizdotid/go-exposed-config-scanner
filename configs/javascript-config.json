@@ -1,0 +1,8 @@
+{
+    "id": "javascript-config",
+    "name": "JavaScript Config",
+    "validator": "is_javascript",
+    "match_from": "header",
+    "output": "javascript-config.txt",
+    "paths": ["env.js", "config.js", "config/env.js", "config/runtime-env.js"]
+}

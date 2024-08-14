@@ -1,0 +1,15 @@
+{
+    "id": "yii-debugger",
+    "name": "Yii Debugger",
+    "match_from": "body",
+    "validator": "is_yii_debugger",
+    "output": "yii-debugger.txt",
+    "paths": [
+        "debug/default/view.html?panel=config",
+        "debug/default/view?panel=config",
+        "frontend/web/debug/default/view?panel=config",
+        "web/debug/default/view?panel=config",
+        "sapi/debug/default/view?panel=config",
+        "debug/default?panel=config"
+    ]
+}
