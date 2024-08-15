@@ -10,18 +10,18 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-
 func main() {
 	// Parse command-line flags
 	templateID := flag.String("id", "", "Template ID, comma-separated for multiple templates")
 	scanAll := flag.Bool("all", false, "Scan all templates")
-	filePath := flag.String("file", "", "File to scan")
+	listFile := flag.String("list", "", "List of URLs to scan")
 	threadCount := flag.Int("threads", 1, "Number of threads")
 	timeout := flag.Int("timeout", 10, "Timeout in seconds")
 	show := flag.Bool("show", false, "Show templates")
@@ -34,13 +34,13 @@ func main() {
 	}
 	if *show {
 		for _, t := range templateList {
-			fmt.Printf("ID: %s\nName: %s\nPaths: %v\nOutput: %s\n\n", t.ID, t.Name, t.Paths[0] + " ...", t.Output)
+			fmt.Printf("ID: %s\nName: %s\nPaths: %v\nOutput: %s\n\n", t.ID, t.Name, t.Paths[0]+" ...", t.Output)
 		}
 		os.Exit(0)
 	}
 
-	if *filePath == "" {
-		fmt.Println("Usage: go-scanner -file <file> [-id <template_id> | -all] [-threads <count>] [-timeout <seconds>]")
+	if *listFile == "" {
+		fmt.Println("Usage: go-scanner -list <list> [-id <template_id> | -all] [-threads <count>] [-timeout <seconds>]")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -55,7 +55,6 @@ func main() {
 		},
 	}
 
-
 	// Select the templates based on command-line flags
 	selectedTemplates, err := helpers.ParseArgsForTemplates(*templateID, *scanAll, &templateList)
 	if err != nil {
@@ -63,7 +62,7 @@ func main() {
 	}
 
 	// Read the file containing URLs to scan
-	fileContent, err := os.ReadFile(*filePath)
+	fileContent, err := os.ReadFile(*listFile)
 	if err != nil {
 		log.Fatalf("Failed to read file: %v", err)
 	}
@@ -90,6 +89,7 @@ func main() {
 		os.Mkdir("results", 0755)
 	}
 
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	// Start scanning for each template
 	for _, template := range selectedTemplates {
 		go func(t *templates.Template) {
@@ -100,7 +100,6 @@ func main() {
 
 	// Wait for all scans to complete
 	wg.Wait()
-
 
 	log.Printf("Elapsed time: %v", time.Since(startTime))
 }
@@ -136,7 +135,7 @@ func runScanner(t *templates.Template, client *http.Client, threads int, urlCoun
 			urlCount.Add(1)
 		}(target)
 	}
-	
+
 	wg.Wait()
 
 }
