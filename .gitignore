@@ -1,0 +1,4 @@
+configs/*
+!configs/README.md
+!configs/example.json
+test.txt
