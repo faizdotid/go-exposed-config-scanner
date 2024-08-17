@@ -1,4 +1,5 @@
 configs/*
+results/*
 !configs/README.md
 !configs/example.json
 test.txt
