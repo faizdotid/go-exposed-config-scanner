@@ -12,7 +12,7 @@ func TestLoadTemplates(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	t.Logf("Templates: %v", mytemp)
+	t.Logf("Templates: %v", mytemp[0])
 }
 
 func BenchmarkTemplates(b *testing.B) {

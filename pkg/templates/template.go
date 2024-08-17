@@ -3,98 +3,53 @@ package templates
 import (
 	"encoding/json"
 	"fmt"
-	"go-exposed-config-scanner/pkg/validators"
+	"go-exposed-config-scanner/pkg/matcher"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
-
+// Load template config from directory
 func (t *Templates) LoadTemplates(dir string) error {
 	if dir == "" {
 		dir = "configs"
 	}
 
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("error accessing path %s: %w", path, err)
 		}
-		if !info.IsDir() && filepath.Ext(path) == ".json" {
+		if !info.IsDir() && filepath.Ext(path) == ".json" && !strings.Contains(path, "example.json") {
 			if err := t.readFromFile(path); err != nil {
 				return fmt.Errorf("error reading template file %s: %w", path, err)
 			}
 		}
 		return nil
 	})
-}
-
-func (t *Templates) registerNewTemplate(id, name, output, validatorName, matchFrom string, paths []string) error {
-	validator, err := validators.GetValidator(validatorName)
 	if err != nil {
-		return fmt.Errorf("error getting validator: %w", err)
+		return fmt.Errorf("error walking the path %s: %w", dir, err)
 	}
-	*t = append(*t, &Template{ID: id, Name: name, Paths: paths, Output: output, Validator: validator, MatchFrom: matchFrom})
 	return nil
 }
 
+// readFromFile reads a template from a JSON file and appends it to the Templates slice.
 func (t *Templates) readFromFile(path string) error {
-
 	file, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("error reading file: %w", err)
+		return fmt.Errorf("error reading file %s: %w", path, err)
 	}
 
-	var data map[string]interface{}
-	if err := json.Unmarshal(file, &data); err != nil {
-		return fmt.Errorf("error unmarshaling JSON: %w", err)
-	}
-	id, ok := data["id"].(string)
-	if !ok {
-		return fmt.Errorf("invalid template format for ID %s", id)
+	var template Template
+	if err := json.Unmarshal(file, &template); err != nil {
+		return fmt.Errorf("error unmarshalling JSON from file %s: %w", path, err)
 	}
 
-	name, ok := data["name"].(string)
-	if !ok {
-		return fmt.Errorf("invalid name for template ID %s", id)
-	}
-
-	output, ok := data["output"].(string)
-	if !ok {
-		return fmt.Errorf("invalid output for template ID %s", id)
-	}
-
-	validatorName, ok := data["validator"].(string)
-	if !ok {
-		return fmt.Errorf("invalid validator for template ID %s", id)
-	}
-
-	paths, ok := data["paths"].([]interface{})
-	if !ok {
-		return fmt.Errorf("invalid paths for template ID %s", id)
-	}
-	matchFrom, ok := data["match_from"].(string)
-	if !ok {
-		matchFrom = ""
-	}
-	if matchFrom != "" {
-		matchFrom = "body"
-	}
-
-
-	stringPaths := make([]string, len(paths))
-	for i, p := range paths {
-		stringPaths[i], ok = p.(string)
-		if !ok {
-			return fmt.Errorf("invalid path format for template ID %s", id)
-		}
-	}
-
-	if err := t.registerNewTemplate(id, name, output, validatorName, matchFrom, stringPaths); err != nil {
-		return fmt.Errorf("error registering template %s: %w", id, err)
-	}
-
+	*t = append(*t, &template)
 	return nil
 }
 
+// GetTemplateByID returns a template by its ID.
 func (t Templates) GetTemplateByID(id string) (*Template, error) {
 	for _, template := range t {
 		if template.ID == id {
@@ -104,3 +59,45 @@ func (t Templates) GetTemplateByID(id string) (*Template, error) {
 	return nil, ErrTemplateNotFound
 }
 
+// UnmarshalJSON is a custom JSON unmarshalling function for Template.
+func (t *Template) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		Output    string `json:"output"`
+		MatchFrom string `json:"match_from"`
+		Matcher   struct {
+			Type  string `json:"type"`
+			Value string `json:"value"`
+		} `json:"match"`
+		Paths []string `json:"paths"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("error unmarshalling JSON: %w", err)
+	}
+
+	t.ID = raw.ID
+	t.Name = raw.Name
+	t.Output = raw.Output
+	t.Paths = raw.Paths
+	t.MatchFrom = raw.MatchFrom
+
+	// Handle the Matcher based on its type
+	switch raw.Matcher.Type {
+	case "regex":
+		regex, err := regexp.Compile(raw.Matcher.Value)
+		if err != nil {
+			return fmt.Errorf("invalid regexp in template: %w", err)
+		}
+		t.Matcher = regex
+	case "word":
+		t.Matcher = matcher.NewWordMatcher(raw.Matcher.Value)
+	case "json":
+		t.Matcher = matcher.NewJsonMatcher()
+	default:
+		return fmt.Errorf("unknown matcher type %q in template", raw.Matcher.Type)
+	}
+
+	return nil
+}

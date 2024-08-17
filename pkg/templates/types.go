@@ -2,16 +2,16 @@ package templates
 
 import (
 	"errors"
-	"go-exposed-config-scanner/pkg/validators"
+	"go-exposed-config-scanner/pkg/matcher"
 )
 
 type Template struct {
-	ID        string
-	Name      string
-	Paths     []string
-	Output    string
-	Validator validators.ValidatorFunction
-	MatchFrom string
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Output    string          `json:"output"`
+	MatchFrom string          `json:"match_from"`
+	Matcher   matcher.Matcher `json:"match"`
+	Paths     []string        `json:"paths"`
 }
 
 // Type for slice of templates
