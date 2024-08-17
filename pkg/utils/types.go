@@ -1,5 +1,4 @@
 package utils
 
-var (
-	newLine = []byte("\n")
-)
+// newline
+var newLine = []byte{'\n'}
