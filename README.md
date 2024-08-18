@@ -60,11 +60,3 @@ This project is a multi-threaded tool designed to scan URLs for exposed configur
 ### Output
 
 Results are stored in the `results` directory, with each template's output saved in a separate file.
-
-## Contributing
-
-Feel free to submit issues or pull requests. Contributions are always welcome!
-
-## License
-
-This project is licensed under the MIT License.
