@@ -32,6 +32,6 @@ func TestColoring(t *testing.T) {
 
 func BenchmarkColor(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		color.Coloring("test", color.Red, color.Bold)
+		color.Red.AnsiFormat("test", color.Bold, color.BgRed)
 	}
 }

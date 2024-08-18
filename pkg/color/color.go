@@ -19,9 +19,9 @@ func (c Color) parseColor(buffer []byte, color Color) []byte {
 
 // AnsiFormat function
 func (c Color) AnsiFormat(data string, colors ...Color) string {
-	// if c != 0 {
-	// 	colors = append([]Color{c}, colors...)
-	// }
+	if c != 0 {
+		colors = append(colors, c)
+	}
 	// calculate the total length of the buffer
 	totalLen := len(data) + len(colors)*5 + 4 // each color is "\x1b[XXm" (5 bytes), reset is "\x1b[0m" (4 bytes)
 
