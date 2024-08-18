@@ -34,7 +34,7 @@ func main() {
 	}
 	if *show {
 		for _, t := range templateList {
-			fmt.Printf("ID: %s\nName: %s\nPaths: %v\nOutput: %s\n\n", t.ID, t.Name, t.Paths[0]+" ...", t.Output)
+			fmt.Printf("ID: %s\nName: %s\n\n", t.ID, t.Name)
 		}
 		os.Exit(0)
 	}
@@ -44,7 +44,6 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
-
 	// Create an HTTP client with a custom transport
 	client := &http.Client{
 		Timeout: time.Duration(*timeout) * time.Second,
@@ -88,13 +87,13 @@ func main() {
 	if _, err := os.Stat("results"); os.IsNotExist(err) {
 		os.Mkdir("results", 0755)
 	}
-
+	lock := sync.Mutex{}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	// Start scanning for each template
 	for _, template := range selectedTemplates {
 		go func(t *templates.Template) {
 			defer wg.Done()
-			runScanner(t, client, *threadCount, &urlCount, totalCount, urls)
+			runScanner(t, client, *threadCount, &urlCount, totalCount, urls, &lock)
 		}(template)
 	}
 
@@ -105,7 +104,7 @@ func main() {
 }
 
 // runScanner executes the scan for a specific template using multiple threads
-func runScanner(t *templates.Template, client *http.Client, threads int, urlCount *atomic.Uint64, totalCount uint64, urls []string) {
+func runScanner(t *templates.Template, client *http.Client, threads int, urlCount *atomic.Uint64, totalCount uint64, urls []string, lock *sync.Mutex) {
 	// Open or create the output file
 	outputFile, err := os.OpenFile(fmt.Sprintf("results/%s", t.Output), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -114,7 +113,7 @@ func runScanner(t *templates.Template, client *http.Client, threads int, urlCoun
 	defer outputFile.Close()
 
 	// Initialize the scanner with the HTTP client, validator, and output file
-	myscanner := core.NewScanner(client, t.Validator, outputFile, t.Name, t.MatchFrom)
+	myscanner := core.NewScanner(client, t.Matcher, outputFile, t.Name, t.MatchFrom)
 
 	// Create a channel to limit the number of concurrent goroutines
 	threadLimiter := make(chan struct{}, threads)
@@ -128,11 +127,15 @@ func runScanner(t *templates.Template, client *http.Client, threads int, urlCoun
 	for _, target := range targets {
 		threadLimiter <- struct{}{}
 		wg.Add(1)
+
 		go func(url string) {
 			defer wg.Done()
-			defer func() { <-threadLimiter }()
-			myscanner.Scan(url, urlCount.Load(), totalCount)
+			defer func() { <-threadLimiter }() // Release the thread limiter
+
+			lock.Lock()
 			urlCount.Add(1)
+			lock.Unlock()
+			myscanner.Scan(url, urlCount.Load(), totalCount)
 		}(target)
 	}
 
