@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"go-exposed-config-scanner/pkg/templates"
 	"reflect"
 	"strings"
@@ -36,6 +37,9 @@ func ParseArgsForTemplates(id string, all bool, t *templates.Templates) ([]*temp
 		return *t, nil
 	}
 
+	if id == "" && !all {
+		return nil, fmt.Errorf("You must provide a template ID or use the -all flag")
+	}
 	if !strings.Contains(id, ",") {
 		template, err := t.GetTemplateByID(id)
 		if err != nil {
