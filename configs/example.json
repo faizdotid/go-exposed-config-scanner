@@ -1,0 +1,13 @@
+{
+    "id": "example",
+    "name": "Example",
+    "output": "example.txt",
+    "match_from": "body",
+    "match": {
+        "type": "regex",
+        "value": "^[A-Z_]+=[^\\n]+"
+    },
+    "paths": [
+        "/example"
+    ]
+}
