@@ -20,7 +20,7 @@ func (t *Templates) LoadTemplates(dir string) error {
 		if err != nil {
 			return fmt.Errorf("error accessing path %s: %w", path, err)
 		}
-		if !info.IsDir() && filepath.Ext(path) == ".json" && !strings.Contains(path, "example.json") {
+		if !info.IsDir() && filepath.Ext(path) == ".json" && !strings.Contains(path, "example.json") && !strings.Contains(path, "README.md") {
 			if err := t.readFromFile(path); err != nil {
 				return fmt.Errorf("error reading template file %s: %w", path, err)
 			}
