@@ -91,7 +91,7 @@ func (t *Template) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("invalid regexp in template: %w", err)
 		}
 		t.Matcher = regex
-	case "word":
+	case "word", "words":
 		t.Matcher = matcher.NewWordMatcher(raw.Matcher.Value)
 	case "json":
 		t.Matcher = matcher.NewJsonMatcher()

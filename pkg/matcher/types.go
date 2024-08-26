@@ -5,7 +5,7 @@ type Matcher interface {
 }
 
 type WordMatcher struct {
-	contains string
+	contains []string
 }
 
 type JsonMatcher struct{}

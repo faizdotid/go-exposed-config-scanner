@@ -6,7 +6,12 @@ import (
 )
 
 func (m *WordMatcher) Match(data []byte) bool {
-	return strings.Contains(string(data), m.contains)
+	for _, word := range m.contains {
+		if strings.Contains(string(data), word) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *JsonMatcher) Match(data []byte) bool {
@@ -14,7 +19,16 @@ func (m *JsonMatcher) Match(data []byte) bool {
 }
 
 func NewWordMatcher(contains string) *WordMatcher {
-	return &WordMatcher{contains: contains}
+	var each []string
+	var words []string = strings.Split(contains, ",")
+	for index, word := range words {
+		curr := strings.TrimSpace(word)
+		if curr[len(curr)-1] == '\\' {
+			curr = curr[:len(curr)-1] + "," + strings.TrimSpace(words[index+1])
+		}
+		each = append(each, curr)
+	}
+	return &WordMatcher{contains: each}
 }
 
 func NewJsonMatcher() *JsonMatcher {
