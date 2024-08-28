@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"go-exposed-config-scanner/internal/helpers"
+	"go-exposed-config-scanner/pkg/color"
 	"go-exposed-config-scanner/pkg/core"
 	"go-exposed-config-scanner/pkg/templates"
 	"log"
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,9 +35,47 @@ func main() {
 		log.Fatalf("Failed to load templates: %v", err)
 	}
 	if *show {
-		for _, t := range templateList {
-			fmt.Printf("ID: %s\nName: %s\n\n", t.ID, t.Name)
+		const columnWidth = 30
+
+		// Define colored headers
+		// Function to center text within a column
+		centerText := func(text string, width int, colors ...color.Color) string {
+			padding := (width - len(text)) / 2
+			currrentStr := strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-len(text)-padding)
+			return color.Coloring(currrentStr, colors...)
 		}
+
+		// Print the centered header with separators
+		fmt.Printf("|%-5s|%-*s|%-*s|%-*s|%-*s|\n",
+			centerText("No.", 5, color.Red, color.Bold),
+			columnWidth, centerText("ID", columnWidth, color.Red, color.Bold),
+			columnWidth, centerText("Name", columnWidth, color.Red, color.Bold),
+			columnWidth, centerText("Match From", columnWidth, color.Red, color.Bold),
+			columnWidth, centerText("Paths", columnWidth, color.Red, color.Bold),
+		)
+
+		fmt.Println(strings.Repeat("-", (columnWidth*4+4)+6) + "|")
+		for idx, iter := range templateList {
+			// Join paths into a single string
+
+			var joinedPaths string = strings.Join(iter.Paths, ", ")
+			// Truncate paths if they exceed the column width
+			if len(joinedPaths) > columnWidth {
+				joinedPaths = joinedPaths[:columnWidth-5] + "..."
+			}
+
+			// Format template fields with colors
+
+			// Print the centered template details with separators
+			fmt.Printf("|%-5s|%-*s|%-*s|%-*s|%-*s|\n",
+				centerText(strconv.Itoa(idx+1), 5, color.Blue, color.Bold),
+				columnWidth, centerText(iter.ID, columnWidth, color.Green),
+				columnWidth, centerText(iter.Name, columnWidth, color.Blue),
+				columnWidth, centerText(iter.MatchFrom, columnWidth, color.Blue),
+				columnWidth, centerText(joinedPaths, columnWidth, color.Blue),
+			)
+		}
+
 		os.Exit(0)
 	}
 
