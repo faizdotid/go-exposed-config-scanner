@@ -61,24 +61,26 @@ func (s *Scanner) printResult(url string, count, totalCount uint64, statusCode i
 	var statusColor color.Color
 
 	switch {
+	case statusCode >= 100 && statusCode < 200:
+		statusColor = color.Blue
 	case statusCode >= 200 && statusCode < 300:
-		statusColor = color.BoldGreen
+		statusColor = color.Green
 		if s.m.Match(content) {
-			fmt.Printf("[ %d / %d ] - [ %s ] - %s\n", count, totalCount, color.Green.AnsiFormat(s.name), url)
+			fmt.Printf("[ %d / %d ] - [ %s ] - %s\n", count, totalCount, color.Green.AnsiFormat(s.name), color.Blue.AnsiFormat(url))
 			utils.WriteFile(s.o, []byte(url))
 			return
 		} else {
-			statusColor = color.BoldYellow
+			statusColor = color.Green
 		}
 	case statusCode >= 300 && statusCode < 400:
-		statusColor = color.BoldCyan
+		statusColor = color.Cyan
 	case statusCode >= 400 && statusCode < 500:
-		statusColor = color.BoldRed
+		statusColor = color.Red
 	case statusCode >= 500:
-		statusColor = color.BoldMagenta
+		statusColor = color.Yellow
 	default:
 		statusColor = color.White
 	}
 
-	fmt.Printf("[ %d / %d ] - [ %s ] - %s\n", count, totalCount, statusColor.AnsiFormat(statusStr), url)
+	fmt.Printf("[ %d / %d ] - [ %s ] - %s\n", count, totalCount, statusColor.AnsiFormat(statusStr), color.Blue.AnsiFormat(url))
 }
