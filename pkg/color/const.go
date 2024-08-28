@@ -1,8 +1,8 @@
 // Description: Constants for color package
 package color
 
+// Escape character
 const (
-	// Escape character
 	Escape = "\x1b"
 )
 
@@ -18,7 +18,7 @@ const (
 	White
 )
 
-// Constants for text formatting
+// Text formatting options
 const (
 	Reset Color = iota
 	Bold
@@ -32,7 +32,7 @@ const (
 	CrossedOut
 )
 
-// Constants for Foreground Hi-Intensity colors
+// Foreground Hi-Intensity (Bright) colors
 const (
 	HiBlack Color = iota + 90
 	HiRed
@@ -44,19 +44,7 @@ const (
 	HiWhite
 )
 
-// Constants for bold colors
-const (
-	BoldBlack Color = 90 + iota
-	BoldRed
-	BoldGreen
-	BoldYellow
-	BoldBlue
-	BoldMagenta
-	BoldCyan
-	BoldWhite
-)
-
-// Constants for background colors
+// Background colors
 const (
 	BgBlack Color = iota + 40
 	BgRed
@@ -68,7 +56,7 @@ const (
 	BgWhite
 )
 
-// Constants for bright colors
+// Background Hi-Intensity (Bright) colors
 const (
 	BrightBgBlack Color = iota + 100
 	BrightBgRed
@@ -80,7 +68,7 @@ const (
 	BrightBgWhite
 )
 
-// Constants for additional colors
+// Additional colors
 const (
 	Orange     Color = 208
 	Purple     Color = 129
