@@ -8,4 +8,4 @@ type WordMatcher struct {
 	contains []string
 }
 
-type JsonMatcher struct{}
+type JSONMatcher struct{}

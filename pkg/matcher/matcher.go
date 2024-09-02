@@ -14,7 +14,7 @@ func (m *WordMatcher) Match(data []byte) bool {
 	return false
 }
 
-func (m *JsonMatcher) Match(data []byte) bool {
+func (m *JSONMatcher) Match(data []byte) bool {
 	return json.Valid(data)
 }
 
@@ -31,6 +31,6 @@ func NewWordMatcher(contains string) *WordMatcher {
 	return &WordMatcher{contains: each}
 }
 
-func NewJsonMatcher() *JsonMatcher {
-	return &JsonMatcher{}
+func NewJSONMatcher() *JSONMatcher {
+	return &JSONMatcher{}
 }
