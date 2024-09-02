@@ -3,22 +3,39 @@ package templates
 import (
 	"errors"
 	"go-exposed-config-scanner/pkg/matcher"
+	"io"
+	"net/http"
+	"time"
 )
 
 type Template struct {
-	ID        string          `json:"id"`
-	Name      string          `json:"name"`
-	Output    string          `json:"output"`
-	MatchFrom string          `json:"match_from"`
-	Matcher   matcher.Matcher `json:"match"`
-	Paths     []string        `json:"paths"`
+	ID        string
+	Name      string
+	Output    string
+	Request   *Request
+	Match     matcher.Matcher
+	MatchFrom string
+	Paths     []string
 }
 
-// Type for slice of templates
+type Request struct {
+	Method  string
+	Timeout time.Duration
+	Headers http.Header
+	Body    io.ReadCloser
+}
+
 type Templates []*Template
 
 var (
-	// Err variable
+	// err variables
+	ErrFolderNotFound   = errors.New("folder not found")
 	ErrTemplateNotFound = errors.New("template not found")
-	ErrTemplateFormat   = errors.New("template format error")
+	ErrInvalidTemplate  = errors.New("invalid template")
+
+	// default values
+	defaultHttpTimeout = 7 * time.Second
+	defaultHttpHeaders = http.Header{
+		"User-Agent": []string{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"},
+	}
 )
