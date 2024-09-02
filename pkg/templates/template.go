@@ -2,74 +2,110 @@ package templates
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go-exposed-config-scanner/pkg/matcher"
-	"os"
-	"path/filepath"
+	"io"
 	"regexp"
 	"strings"
+	"time"
 )
 
-// Load template config from directory
-func (t *Templates) LoadTemplates(dir string) error {
-	if dir == "" {
-		dir = "configs"
+func (t *Template) validateMethodRequest(data string) error {
+	validMethods := map[string]bool{
+		"GET":    true,
+		"POST":   true,
+		"PUT":    true,
+		"DELETE": true,
+		"HEAD":   true,
+		"PATCH":  true,
 	}
-
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return fmt.Errorf("error accessing path %s: %w", path, err)
-		}
-		if !info.IsDir() && filepath.Ext(path) == ".json" && !strings.Contains(path, "example.json") && !strings.Contains(path, "README.md") {
-			if err := t.readFromFile(path); err != nil {
-				return fmt.Errorf("error reading template file %s: %w", path, err)
-			}
-		}
+	if validMethods[data] {
+		t.Request.Method = data
 		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("error walking the path %s: %w", dir, err)
+	}
+	return errors.New("invalid method")
+}
+
+func (t *Template) validateBodyRequest(data string) error {
+	if data != "" {
+		t.Request.Body = io.NopCloser(strings.NewReader(data))
+	} else {
+		t.Request.Body = nil
 	}
 	return nil
 }
 
-// readFromFile reads a template from a JSON file and appends it to the Templates slice.
-func (t *Templates) readFromFile(path string) error {
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("error reading file %s: %w", path, err)
+func (t *Template) validateTimeoutRequest(data int) error {
+	if data < 0 || data > 60 {
+		return errors.New("timeout must be greater than 0 and less than 60")
 	}
-
-	var template Template
-	if err := json.Unmarshal(file, &template); err != nil {
-		return fmt.Errorf("error unmarshalling JSON from file %s: %w", path, err)
+	if data == 0 {
+		t.Request.Timeout = defaultHttpTimeout
+	} else {
+		t.Request.Timeout = time.Duration(data) * time.Second
 	}
-
-	*t = append(*t, &template)
 	return nil
 }
 
-// GetTemplateByID returns a template by its ID.
-func (t Templates) GetTemplateByID(id string) (*Template, error) {
-	for _, template := range t {
-		if template.ID == id {
-			return template, nil
-		}
+func (t *Template) validateMatchRequest(from, types, value string) error {
+	if from != "body" && from != "headers" {
+		return errors.New("invalid from value")
 	}
-	return nil, ErrTemplateNotFound
+
+	switch types {
+	case "regex":
+		t.Match = regexp.MustCompile(value)
+	case "word", "words":
+		t.Match = matcher.NewWordMatcher(value)
+	case "json":
+		t.Match = matcher.NewJSONMatcher()
+	default:
+		return errors.New("invalid match type")
+	}
+	return nil
 }
 
-// UnmarshalJSON is a custom JSON unmarshalling function for Template.
+func (t *Template) validateMatchFrom(data string) error {
+	if data != "body" && data != "headers" {
+		return errors.New("invalid matchFrom value")
+	}
+	t.MatchFrom = data
+	return nil
+}
+
+func (t *Template) setHeadersRequest(data map[string]string) {
+	t.Request.Headers = defaultHttpHeaders
+	for k, v := range data {
+		t.Request.Headers.Set(k, v)
+	}
+}
+
+func (t *Template) validatePathsRequest(data []string) error {
+	if len(data) == 0 {
+		return errors.New("paths must not be empty")
+	}
+	t.Paths = data
+	return nil
+}
+
+// custom unmarshaler for Template struct
 func (t *Template) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		ID        string `json:"id"`
-		Name      string `json:"name"`
-		Output    string `json:"output"`
-		MatchFrom string `json:"match_from"`
-		Matcher   struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Output  string `json:"output"`
+		Request struct {
+			Method  string            `json:"method"`
+			Timeout int               `json:"timeout"`
+			Headers map[string]string `json:"headers"`
+			Body    string            `json:"body"`
+		}
+		Match struct {
+			From  string `json:"from"`
 			Type  string `json:"type"`
 			Value string `json:"value"`
-		} `json:"match"`
+		}
 		Paths []string `json:"paths"`
 	}
 
@@ -80,23 +116,38 @@ func (t *Template) UnmarshalJSON(data []byte) error {
 	t.ID = raw.ID
 	t.Name = raw.Name
 	t.Output = raw.Output
-	t.Paths = raw.Paths
-	t.MatchFrom = raw.MatchFrom
 
-	// Handle the Matcher based on its type
-	switch raw.Matcher.Type {
-	case "regex":
-		regex, err := regexp.Compile(raw.Matcher.Value)
-		if err != nil {
-			return fmt.Errorf("invalid regexp in template: %w", err)
-		}
-		t.Matcher = regex
-	case "word", "words":
-		t.Matcher = matcher.NewWordMatcher(raw.Matcher.Value)
-	case "json":
-		t.Matcher = matcher.NewJsonMatcher()
-	default:
-		return fmt.Errorf("unknown matcher type %q in template", raw.Matcher.Type)
+	// validate method
+	if err := t.validateMethodRequest(raw.Request.Method); err != nil {
+		return err
+	}
+
+	// validate body
+	if err := t.validateBodyRequest(raw.Request.Body); err != nil {
+		return err
+	}
+
+	// validate timeout
+	if err := t.validateTimeoutRequest(raw.Request.Timeout); err != nil {
+		return err
+	}
+
+	// set headers
+	t.setHeadersRequest(raw.Request.Headers)
+
+	// validate match
+	if err := t.validateMatchRequest(raw.Match.From, raw.Match.Type, raw.Match.Value); err != nil {
+		return err
+	}
+
+	// validate matchFrom
+	if err := t.validateMatchFrom(raw.Match.From); err != nil {
+		return err
+	}
+
+	// validate paths
+	if err := t.validatePathsRequest(raw.Paths); err != nil {
+		return err
 	}
 
 	return nil
