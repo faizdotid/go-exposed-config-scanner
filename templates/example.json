@@ -2,8 +2,15 @@
     "id": "example",
     "name": "Example",
     "output": "example.txt",
-    "match_from": "body",
+    "request": {
+        "method": "GET",
+        "headers": {
+            "Accept": "text/plain"
+        },
+        "timeout": 7
+    },
     "match": {
+        "from": "body",
         "type": "regex",
         "value": "^[A-Z_]+=[^\\n]+"
     },
