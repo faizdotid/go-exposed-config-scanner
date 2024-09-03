@@ -2,85 +2,95 @@ package core
 
 import (
 	"fmt"
-	"go-exposed-config-scanner/pkg/color"
-	"go-exposed-config-scanner/pkg/matcher"
-	"go-exposed-config-scanner/pkg/utils"
 	"io"
 	"net/http"
 	"os"
-	"strconv"
+	"strings"
+
+	"go-exposed-config-scanner/pkg/color"
+	"go-exposed-config-scanner/pkg/matcher"
+	"go-exposed-config-scanner/pkg/request"
+	"go-exposed-config-scanner/pkg/utils"
 )
 
-type Scanner struct {
-	c         *http.Client
-	m         matcher.Matcher
-	o         *os.File
-	name      string
-	matchFrom string
-}
-
-func NewScanner(client *http.Client, m matcher.Matcher, output *os.File, name string, matchFrom string) *Scanner {
+func NewScanner(c *request.Requester, m matcher.Matcher, o *os.File, n string, mf string, v bool, mo bool) *Scanner {
 	return &Scanner{
-		c:         client,
-		m:         m,
-		o:         output,
-		name:      name,
-		matchFrom: matchFrom,
+		client:    c,
+		matcher:   m,
+		output:    o,
+		name:      n,
+		matchFrom: mf,
+		verbose:   v,
+		matchOnly: mo,
 	}
 }
 
+func (s *Scanner) getContent(r *http.Response) ([]byte, error) {
+	switch strings.ToLower(s.matchFrom) {
+	case "body":
+		return io.ReadAll(r.Body)
+	case "headers":
+		return []byte(fmt.Sprint(r.Header)), nil
+	}
+	return nil, fmt.Errorf("invalid matchFrom value: %s", s.matchFrom)
+}
+
 func (s *Scanner) Scan(url string, count uint64, totalCount uint64) {
-	resp, err := s.c.Get(url)
+	resp, err := s.client.Do(url)
 	if err != nil {
-		s.logError(count, totalCount, err)
+		s.logError(count, totalCount, url, err)
 		return
 	}
 	defer resp.Body.Close()
 
-	var content []byte
-	switch s.matchFrom {
-	case "body":
-		content, err = io.ReadAll(resp.Body)
-	case "header":
-		content = []byte(fmt.Sprint(resp.Header))
-	}
-
+	content, err := s.getContent(resp)
 	if err != nil {
-		s.logError(count, totalCount, err)
+		s.logError(count, totalCount, url, err)
 		return
 	}
-	s.printResult(url, count, totalCount, resp.StatusCode, content)
+
+	matched := s.matcher.Match(content)
+	s.logResult(count, totalCount, url, matched)
+
+	if matched {
+		utils.WriteFile(s.output, []byte(url))
+	}
 }
 
-func (s *Scanner) logError(count uint64, totalCount uint64, err error) {
-	fmt.Printf("[ %d / %d ] - [ %s ] - %s\n", count, totalCount, color.Red.AnsiFormat("ERROR"), err)
-}
-
-func (s *Scanner) printResult(url string, count, totalCount uint64, statusCode int, content []byte) {
-	statusStr := strconv.Itoa(statusCode)
-	var statusColor color.Color
-
-	switch {
-	case statusCode >= 100 && statusCode < 200:
-		statusColor = color.Blue
-	case statusCode >= 200 && statusCode < 300:
-		statusColor = color.Green
-		if s.m.Match(content) {
-			fmt.Printf("[ %d / %d ] - [ %s ] - %s\n", count, totalCount, color.Green.AnsiFormat(s.name), color.Blue.AnsiFormat(url))
-			utils.WriteFile(s.o, []byte(url))
-			return
-		} else {
-			statusColor = color.Green
-		}
-	case statusCode >= 300 && statusCode < 400:
-		statusColor = color.Cyan
-	case statusCode >= 400 && statusCode < 500:
-		statusColor = color.Red
-	case statusCode >= 500:
-		statusColor = color.Yellow
-	default:
-		statusColor = color.White
+func (s *Scanner) logResult(count uint64, totalCount uint64, url string, matched bool) {
+	if s.matchOnly && !matched {
+		return
 	}
 
-	fmt.Printf("[ %d / %d ] - [ %s ] - %s\n", count, totalCount, statusColor.AnsiFormat(statusStr), color.Blue.AnsiFormat(url))
+	status := color.Red.AnsiFormat("BAD")
+	if matched {
+		status = color.Green.AnsiFormat("OK")
+	}
+
+	output := fmt.Sprintf("[%s/%s] %s %s %s - %s",
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", count)),
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", totalCount)),
+		color.Yellow.AnsiFormat(s.name),
+		color.White.AnsiFormat("-"),
+		color.Blue.AnsiFormat(url),
+		status,
+	)
+
+	fmt.Println(output)
+}
+
+func (s *Scanner) logError(count uint64, totalCount uint64, url string, err error) {
+	if !s.verbose {
+		return
+	}
+
+	errorOutput := fmt.Sprintf("[%s/%s] %s %s %s - %s",
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", count)),
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", totalCount)),
+		color.Yellow.AnsiFormat(s.name),
+		color.White.AnsiFormat("-"),
+		color.Blue.AnsiFormat(url),
+		color.Red.AnsiFormat(err.Error()))
+
+	fmt.Println(errorOutput)
 }
