@@ -93,7 +93,7 @@ func initializeScanner(template *templates.Template, urls []string, totalCount u
 	if args.Timeout > 0 {
 		template.Request.Timeout = time.Duration(args.Timeout) * time.Second
 	}
-	
+
 	requester, err := request.NewRequester(*template.Request)
 	if err != nil {
 		log.Fatalf("failed to create requester: %v", err)
@@ -123,9 +123,9 @@ func initializeScanner(template *templates.Template, urls []string, totalCount u
 			defer func() { <-threadsChannel }()
 
 			mu.Lock()
-			count := urlCount.Add(1)
+			urlCount.Add(1)
 			mu.Unlock()
-			scanner.Scan(t, count, totalCount)
+			scanner.Scan(t, urlCount.Load(), totalCount)
 		}(target)
 	}
 
