@@ -10,15 +10,15 @@ Information about the structure and usage of our JSON configuration files.
   "name": "Example",
   "output": "example.txt",
   "request": {
-    "method": "GET",
+    "method": "GET", // POST, PUT , HEAD, DELETE, UPDATE, PATCH
     "headers": {
       "Accept": "text/plain"
     },
     "timeout": 7
   },
   "match": {
-    "from": "body",
-    "type": "regex",
+    "from": "body", // headers
+    "type": "regex", // words, word
     "value": "^[A-Z_]+=[^\\n]+"
   },
   "paths": ["/example"]
