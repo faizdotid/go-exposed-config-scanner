@@ -14,17 +14,17 @@ This project is a multi-threaded tool designed to scan URLs for exposed configur
 
 1. Clone the repository:
 
-    ```bash
-    git clone https://github.com/yourusername/go-exposed-config-scanner.git
-    cd go-exposed-config-scanner
-    ```
+   ```bash
+   git clone https://github.com/faizdotid/go-exposed-config-scanner.git
+   cd go-exposed-config-scanner
+   ```
 
 2. Install dependencies and build the project:
 
-    ```bash
-    go mod tidy
-    go build
-    ```
+   ```bash
+   go mod tidy
+   go build
+   ```
 
 ## Usage
 
@@ -32,30 +32,32 @@ This project is a multi-threaded tool designed to scan URLs for exposed configur
 
 - `-id`: Specify the template ID(s) to scan, comma-separated for multiple templates.
 - `-all`: Scan all available templates.
-- `-list`: List of URLs to scan.
-- `-threads`: Number of threads to use for scanning (default: 1).
-- `-timeout`: Timeout for HTTP requests in seconds (default: 10).
+- `-filelist`: List of URLs to scan.
+- `-threads`: Number of threads to use for scanning (default: 10).
+- `-timeout`: Timeout for HTTP requests in seconds (_This will be applied to all templates_).
+- `-verbose`: Print error verbose.
+- `-match`: Print only match URLS.
 - `-show`: Display available templates and their details.
 
 ### Example Commands
 
 1. **Scan using a specific template:**
 
-    ```bash
-    ./go-exposed-config-scanner -list urls.txt -id template1
-    ```
+   ```bash
+   ./go-exposed-config-scanner -filelist urls.txt -id template1
+   ```
 
 2. **Scan using all templates:**
 
-    ```bash
-    ./go-exposed-config-scanner -list urls.txt -all
-    ```
+   ```bash
+   ./go-exposed-config-scanner -filelist urls.txt -all
+   ```
 
 3. **Show available templates:**
 
-    ```bash
-    ./go-exposed-config-scanner -show
-    ```
+   ```bash
+   ./go-exposed-config-scanner -show
+   ```
 
 ### Output
 
