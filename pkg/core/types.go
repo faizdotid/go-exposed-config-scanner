@@ -7,11 +7,11 @@ import (
 )
 
 type Scanner struct {
-	client    *request.Requester
-	matcher   matcher.Matcher
-	output    *os.File
 	name      string
 	matchFrom string
+	matcher   matcher.Matcher
+	client    *request.Requester
+	output    *os.File
 	verbose   bool
 	matchOnly bool
 }

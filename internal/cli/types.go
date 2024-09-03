@@ -1,14 +1,14 @@
 package cli
 
 type Args struct {
-	Show       bool
-	All        bool
-	Threads    int
 	TemplateId string
 	FileList   string
+	Threads    int
+	Timeout    int
 	MatchOnly  bool
 	Verbose    bool
-	Timeout    int
+	Show       bool
+	All        bool
 }
 
 var currentArgs Args

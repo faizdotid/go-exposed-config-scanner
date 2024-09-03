@@ -9,20 +9,20 @@ import (
 )
 
 type Template struct {
+	Paths     []string
 	ID        string
 	Name      string
 	Output    string
-	Request   *Request
-	Match     matcher.Matcher
 	MatchFrom string
-	Paths     []string
+	Match     matcher.Matcher
+	Request   *Request
 }
 
 type Request struct {
 	Method  string
+	Body    io.ReadCloser
 	Timeout time.Duration
 	Headers http.Header
-	Body    io.ReadCloser
 }
 
 type Templates []*Template
