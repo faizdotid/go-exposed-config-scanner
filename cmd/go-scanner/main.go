@@ -1,18 +1,16 @@
 package main
 
 import (
-	"crypto/tls"
-	"flag"
 	"fmt"
+	"go-exposed-config-scanner/internal/cli"
 	"go-exposed-config-scanner/internal/helpers"
 	"go-exposed-config-scanner/pkg/color"
 	"go-exposed-config-scanner/pkg/core"
+	"go-exposed-config-scanner/pkg/request"
 	"go-exposed-config-scanner/pkg/templates"
 	"log"
-	"net/http"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,165 +18,116 @@ import (
 )
 
 func main() {
-	// Parse command-line flags
-	templateID := flag.String("id", "", "Template ID, comma-separated for multiple templates")
-	scanAll := flag.Bool("all", false, "Scan all templates")
-	listFile := flag.String("list", "", "List of URLs to scan")
-	threadCount := flag.Int("threads", 1, "Number of threads")
-	timeout := flag.Int("timeout", 10, "Timeout in seconds")
-	show := flag.Bool("show", false, "Show templates")
-	flag.Parse()
-
-	// Load templates from the configuration directory
-	templateList := templates.Templates{}
-	if err := templateList.LoadTemplates("configs"); err != nil {
-		log.Fatalf("Failed to load templates: %v", err)
-	}
-	if *show {
-		const columnWidth = 30
-
-		// Define colored headers
-		// Function to center text within a column
-		centerText := func(text string, width int, colors ...color.Color) string {
-			padding := (width - len(text)) / 2
-			currrentStr := strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-len(text)-padding)
-			return color.Coloring(currrentStr, colors...)
-		}
-
-		// Print the centered header with separators
-		fmt.Printf("|%-5s|%-*s|%-*s|%-*s|%-*s|\n",
-			centerText("No.", 5, color.Red, color.Bold),
-			columnWidth, centerText("ID", columnWidth, color.Red, color.Bold),
-			columnWidth, centerText("Name", columnWidth, color.Red, color.Bold),
-			columnWidth, centerText("Match From", columnWidth, color.Red, color.Bold),
-			columnWidth, centerText("Paths", columnWidth, color.Red, color.Bold),
-		)
-
-		fmt.Println(strings.Repeat("-", (columnWidth*4+4)+6) + "|")
-		for idx, iter := range templateList {
-			// Join paths into a single string
-
-			var joinedPaths string = strings.Join(iter.Paths, ", ")
-			// Truncate paths if they exceed the column width
-			if len(joinedPaths) > columnWidth {
-				joinedPaths = joinedPaths[:columnWidth-5] + "..."
-			}
-
-			// Format template fields with colors
-
-			// Print the centered template details with separators
-			fmt.Printf("|%-5s|%-*s|%-*s|%-*s|%-*s|\n",
-				centerText(strconv.Itoa(idx+1), 5, color.Blue, color.Bold),
-				columnWidth, centerText(iter.ID, columnWidth, color.Green),
-				columnWidth, centerText(iter.Name, columnWidth, color.Blue),
-				columnWidth, centerText(iter.MatchFrom, columnWidth, color.Blue),
-				columnWidth, centerText(joinedPaths, columnWidth, color.Blue),
-			)
-		}
-
-		os.Exit(0)
-	}
-
-	if *listFile == "" {
-		fmt.Println("Usage: go-scanner -list <list> [-id <template_id> | -all] [-threads <count>] [-timeout <seconds>]")
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
-	// Create an HTTP client with a custom transport
-	client := &http.Client{
-		Timeout: time.Duration(*timeout) * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-
-	// Select the templates based on command-line flags
-	selectedTemplates, err := helpers.ParseArgsForTemplates(*templateID, *scanAll, &templateList)
-	if err != nil {
-		log.Fatalf("Failed to parse templates: %v", err)
-	}
-
-	// Read the file containing URLs to scan
-	fileContent, err := os.ReadFile(*listFile)
-	if err != nil {
-		log.Fatalf("Failed to read file: %v", err)
-	}
-	urls := strings.Split(strings.TrimSpace(string(fileContent)), "\n")
-
-	// Calculate the total number of URLs to scan
-	totalCount := uint64(0)
-	for _, t := range selectedTemplates {
-		totalCount += uint64(len(urls) * len(t.Paths))
-	}
-
-	// Initialize an atomic counter for the scanned URLs
-	var urlCount atomic.Uint64
-
-	urlCount.Store(1)
-	// Create a WaitGroup to manage goroutines
-	var wg sync.WaitGroup
-	wg.Add(len(selectedTemplates))
-
-	fmt.Printf("Starting scan %d URLs with %d threads\n", totalCount, *threadCount)
 	startTime := time.Now()
+
+	// load templates
+	currentTemplates := templates.Templates{}
+	if err := currentTemplates.LoadTemplate("templates"); err != nil {
+		log.Fatalf("failed to load templates: %v", err)
+	}
+
+	// parsing command line arguments
+	args := cli.ParseArgs(currentTemplates)
+
+	// filter templates
+	selectedTemplates, err := helpers.ParseArgsForTemplates(args.TemplateId, args.All, &currentTemplates)
+	if err != nil {
+		log.Fatalf("failed to parse args for templates: %v", err)
+	}
 
 	if _, err := os.Stat("results"); os.IsNotExist(err) {
 		os.Mkdir("results", 0755)
 	}
-	lock := sync.Mutex{}
+
+	// read file
+	fileContent, err := os.ReadFile(args.FileList)
+	if err != nil {
+		log.Fatalf("failed to read file: %v", err)
+	}
+
+	urls := strings.Split(strings.TrimSpace(string(fileContent)), "\n")
+
+	// calculate total count of URLs to scan
+	var totalCount uint64
+	for _, t := range selectedTemplates {
+		totalCount += uint64(len(urls)) * uint64(len(t.Paths))
+	}
+
+	fmt.Printf("%s %s %s\n",
+		color.White.AnsiFormat("[")+color.Cyan.AnsiFormat("INFO")+color.White.AnsiFormat("]"),
+		color.Green.AnsiFormat(fmt.Sprintf("Loaded %d URLs.", totalCount)),
+		color.Yellow.AnsiFormat("Starting scan..."))
+	time.Sleep(1 * time.Second)
+
+	// initialize a counter for URLs
+	urlCount := atomic.Uint64{}
+	urlCount.Store(1)
+
+	// initialize mutex and wait group
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	// Start scanning for each template
+
+	// Initialize the scanner for each selected template
+	wg.Add(len(selectedTemplates))
 	for _, template := range selectedTemplates {
 		go func(t *templates.Template) {
 			defer wg.Done()
-			runScanner(t, client, *threadCount, &urlCount, totalCount, urls, &lock)
+			initializeScanner(t, urls, totalCount, &urlCount, &mu, args)
 		}(template)
 	}
 
-	// Wait for all scans to complete
+	// Wait for all goroutines to finish
 	wg.Wait()
 
-	log.Printf("Elapsed time: %v", time.Since(startTime))
+	elapsedTime := time.Since(startTime)
+	fmt.Printf("%s %s %s\n",
+		color.White.AnsiFormat("[")+color.Cyan.AnsiFormat("INFO")+color.White.AnsiFormat("]"),
+		color.Green.AnsiFormat("Scan completed."),
+		color.Yellow.AnsiFormat(fmt.Sprintf("Elapsed time: %s", elapsedTime)))
 }
 
-// runScanner executes the scan for a specific template using multiple threads
-func runScanner(t *templates.Template, client *http.Client, threads int, urlCount *atomic.Uint64, totalCount uint64, urls []string, lock *sync.Mutex) {
-	// Open or create the output file
-	outputFile, err := os.OpenFile(fmt.Sprintf("results/%s", t.Output), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatalf("Failed to open output file: %v", err)
+// initializeScanner sets up and runs the scan for a specific template using multiple threads
+func initializeScanner(template *templates.Template, urls []string, totalCount uint64, urlCount *atomic.Uint64, mu *sync.Mutex, args *cli.Args) {
+	if args.Timeout > 0 {
+		template.Request.Timeout = time.Duration(args.Timeout) * time.Second
 	}
-	defer outputFile.Close()
+	
+	requester, err := request.NewRequester(*template.Request)
+	if err != nil {
+		log.Fatalf("failed to create requester: %v", err)
+	}
 
-	// Initialize the scanner with the HTTP client, validator, and output file
-	myscanner := core.NewScanner(client, t.Matcher, outputFile, t.Name, t.MatchFrom)
+	fileOutput, err := os.OpenFile(fmt.Sprintf("results/%s", template.Output), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("failed to open file: %v", err)
+	}
+	defer fileOutput.Close()
 
-	// Create a channel to limit the number of concurrent goroutines
-	threadLimiter := make(chan struct{}, threads)
+	scanner := core.NewScanner(requester, template.Match, fileOutput, template.Name, template.MatchFrom, args.Verbose, args.MatchOnly)
+
+	threadsChannel := make(chan struct{}, args.Threads)
 	var wg sync.WaitGroup
 
 	var targets []string
 	for _, url := range urls {
-		helpers.MergeURLAndPaths(url, t.Paths, &targets)
+		helpers.MergeURLAndPaths(url, template.Paths, &targets)
 	}
 
 	for _, target := range targets {
-		threadLimiter <- struct{}{}
+		threadsChannel <- struct{}{}
 		wg.Add(1)
-
-		go func(url string) {
+		go func(t string) {
 			defer wg.Done()
-			defer func() { <-threadLimiter }() // Release the thread limiter
+			defer func() { <-threadsChannel }()
 
-			lock.Lock()
-			urlCount.Add(1)
-			lock.Unlock()
-			myscanner.Scan(url, urlCount.Load(), totalCount)
+			mu.Lock()
+			count := urlCount.Add(1)
+			mu.Unlock()
+			scanner.Scan(t, count, totalCount)
 		}(target)
 	}
 
 	wg.Wait()
-
 }
