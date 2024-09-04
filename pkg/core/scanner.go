@@ -25,14 +25,24 @@ func NewScanner(c *request.Requester, m matcher.Matcher, o *os.File, n string, m
 	}
 }
 
-func (s *Scanner) getContent(r *http.Response) ([]byte, error) {
+func (s *Scanner) matchContent(r *http.Response) (bool, error) {
 	switch strings.ToLower(s.matchFrom) {
 	case "body":
-		return io.ReadAll(r.Body)
+		content, err := io.ReadAll(r.Body)
+		if err != nil {
+			return false, err
+		}
+		return s.matcher.Match(content), nil
 	case "headers":
-		return []byte(fmt.Sprint(r.Header)), nil
+		for _, value := range r.Header {
+			if s.matcher.Match([]byte(strings.Join(value, ","))) {
+				return true, nil
+			}
+		}
+	default:
+		return false, fmt.Errorf("invalid matchFrom value: %s", s.matchFrom)
 	}
-	return nil, fmt.Errorf("invalid matchFrom value: %s", s.matchFrom)
+	return false, nil
 }
 
 func (s *Scanner) Scan(url string, count uint64, totalCount uint64) {
@@ -43,13 +53,11 @@ func (s *Scanner) Scan(url string, count uint64, totalCount uint64) {
 	}
 	defer resp.Body.Close()
 
-	content, err := s.getContent(resp)
+	matched, err := s.matchContent(resp)
 	if err != nil {
 		s.logError(count, totalCount, url, err)
 		return
 	}
-
-	matched := s.matcher.Match(content)
 	s.logResult(count, totalCount, url, matched)
 
 	if matched {
