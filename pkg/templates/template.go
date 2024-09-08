@@ -60,6 +60,8 @@ func (t *Template) validateMatchRequest(from, types, value string) error {
 		t.Match = matcher.NewWordMatcher(value)
 	case "json":
 		t.Match = matcher.NewJSONMatcher()
+	case "binary":
+		t.Match = matcher.NewBinaryMatcher(value)
 	default:
 		return errors.New("invalid match type")
 	}

@@ -41,4 +41,12 @@ func TestMatcher(t *testing.T) {
 		}
 	})
 
+	t.Run("TestBinaryMatcher", func(t *testing.T) {
+		m := matcher.NewBinaryMatcher("616263")
+		match := m.Match([]byte("abc"))
+		if !match {
+			t.Errorf("Expected match, got no match")
+		}
+	})
+
 }
