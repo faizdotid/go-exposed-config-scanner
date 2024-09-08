@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-exposed-config-scanner/pkg/matcher"
 	"io"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -77,7 +78,10 @@ func (t *Template) validateMatchFrom(data string) error {
 }
 
 func (t *Template) setHeadersRequest(data map[string]string) {
-	t.Request.Headers = defaultHttpHeaders
+	t.Request.Headers = make(http.Header)
+	for k, v := range defaultHttpHeaders {
+		t.Request.Headers[k] = v
+	}
 	for k, v := range data {
 		t.Request.Headers.Set(k, v)
 	}
@@ -93,6 +97,9 @@ func (t *Template) validatePathsRequest(data []string) error {
 
 // custom unmarshaler for Template struct
 func (t *Template) UnmarshalJSON(data []byte) error {
+	if t.Request == nil {
+		t.Request = &Request{}
+	}
 	var raw struct {
 		ID      string `json:"id"`
 		Name    string `json:"name"`

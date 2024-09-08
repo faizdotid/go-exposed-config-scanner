@@ -48,9 +48,7 @@ func (t *Templates) readFileTemplate(path string) error {
 		return fmt.Errorf("error reading file %s: %w", path, err)
 	}
 
-	template := &Template{
-		Request: &Request{},
-	}
+	template := &Template{}
 	if err := json.Unmarshal(file, template); err != nil {
 		return fmt.Errorf("error unmarshalling JSON from file %s: %w", path, err)
 	}
