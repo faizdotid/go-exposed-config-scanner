@@ -18,8 +18,8 @@ Information about the structure and usage of our JSON configuration files.
   },
   "match": {
     "from": "body", // headers
-    "type": "regex", // words, word
-    "value": "^[A-Z_]+=[^\\n]+"
+    "type": "regex", // words, word, binary
+    "value": "^[A-Z_]+=[^\\n]+" // binary := 616263
   },
   "paths": ["/example"]
 }
@@ -27,17 +27,17 @@ Information about the structure and usage of our JSON configuration files.
 
 ## Field Information
 
-| Field           | Type    | Description                         |
-| --------------- | ------- | ----------------------------------- |
-| id              | string  | Identifier for the configuration    |
-| name            | string  | Name of the configuration           |
-| output          | string  | Name of the output file             |
-| request         | object  | Request configuration               |
-| request.method  | string  | HTTP method to use for the request  |
-| request.headers | object  | Headers to include in the request   |
-| request.timeout | integer | Timeout for the request in seconds  |
-| match           | object  | Match configuration                 |
-| match.from      | string  | Location to match (body or headers) |
-| match.type      | string  | Type of match (regex or string)     |
-| match.value     | string  | Value to match (regex or string)    |
-| paths           | array   | Paths to scan for the configuration |
+| Field           | Type    | Description                                    |
+| --------------- | ------- | ---------------------------------------------- |
+| id              | string  | Identifier for the configuration               |
+| name            | string  | Name of the configuration                      |
+| output          | string  | Name of the output file                        |
+| request         | object  | Request configuration                          |
+| request.method  | string  | HTTP method to use for the request             |
+| request.headers | object  | Headers to include in the request              |
+| request.timeout | integer | Timeout for the request in seconds             |
+| match           | object  | Match configuration                            |
+| match.from      | string  | Location to match (body or headers)            |
+| match.type      | string  | Type of match (regex or string, binary)        |
+| match.value     | string  | Value to match (regex or string)               |
+| paths           | array   | Paths to scan for the configuration            |
