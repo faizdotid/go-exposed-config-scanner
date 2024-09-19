@@ -61,7 +61,6 @@ func main() {
 
 	// initialize a counter for URLs
 	urlCount := atomic.Uint64{}
-	urlCount.Store(1)
 
 	// initialize mutex and wait group
 	var mu sync.Mutex
@@ -105,7 +104,7 @@ func initializeScanner(template *templates.Template, urls []string, totalCount u
 	}
 	defer fileOutput.Close()
 
-	scanner := core.NewScanner(requester, template.Match, fileOutput, template.Name, template.MatchFrom, args.Verbose, args.MatchOnly)
+	scanner := core.NewScanner(requester, template.Match, fileOutput, template.Name, template.MatchFrom, args.Verbose, args.MatchOnly, urlCount, totalCount, mu)
 
 	threadsChannel := make(chan struct{}, args.Threads)
 	targetsChannel := make(chan string, args.Threads)
@@ -122,12 +121,8 @@ func initializeScanner(template *templates.Template, urls []string, totalCount u
 		wg.Add(1)
 		go func(t string) {
 			defer wg.Done()
-			defer func() { <-threadsChannel }()
-
-			mu.Lock()
-			urlCount.Add(1)
-			mu.Unlock()
-			scanner.Scan(t, urlCount.Load(), totalCount)
+			defer func() { <-threadsChannel }() // release thread
+			scanner.Scan(t)
 		}(target)
 	}
 
