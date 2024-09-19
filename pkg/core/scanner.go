@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"go-exposed-config-scanner/pkg/color"
 	"go-exposed-config-scanner/pkg/matcher"
@@ -13,15 +15,18 @@ import (
 	"go-exposed-config-scanner/pkg/utils"
 )
 
-func NewScanner(c *request.Requester, m matcher.Matcher, o *os.File, n string, mf string, v bool, mo bool) *Scanner {
+func NewScanner(c *request.Requester, m matcher.Matcher, o *os.File, n string, mf string, v bool, mo bool, counter *atomic.Uint64, totalCount uint64, mu *sync.Mutex) *Scanner {
 	return &Scanner{
-		client:    c,
-		matcher:   m,
-		output:    o,
-		name:      n,
-		matchFrom: mf,
-		verbose:   v,
-		matchOnly: mo,
+		client:     c,
+		matcher:    m,
+		output:     o,
+		name:       n,
+		matchFrom:  mf,
+		verbose:    v,
+		matchOnly:  mo,
+		counter:    counter,
+		totalCount: totalCount,
+		mu:         mu,
 	}
 }
 
@@ -45,27 +50,30 @@ func (s *Scanner) matchContent(r *http.Response) (bool, error) {
 	return false, nil
 }
 
-func (s *Scanner) Scan(url string, count uint64, totalCount uint64) {
+func (s *Scanner) Scan(url string) {
 	resp, err := s.client.Do(url)
+	s.mu.Lock()
+	s.counter.Add(1)
+	s.mu.Unlock()
 	if err != nil {
-		s.logError(count, totalCount, url, err)
+		s.logError(url, err)
 		return
 	}
 	defer resp.Body.Close()
 
 	matched, err := s.matchContent(resp)
 	if err != nil {
-		s.logError(count, totalCount, url, err)
+		s.logError(url, err)
 		return
 	}
-	s.logResult(count, totalCount, url, matched)
+	s.logResult(url, matched)
 
 	if matched {
 		utils.WriteFile(s.output, []byte(url))
 	}
 }
 
-func (s *Scanner) logResult(count uint64, totalCount uint64, url string, matched bool) {
+func (s *Scanner) logResult(url string, matched bool) {
 	if s.matchOnly && !matched {
 		return
 	}
@@ -76,8 +84,8 @@ func (s *Scanner) logResult(count uint64, totalCount uint64, url string, matched
 	}
 
 	output := fmt.Sprintf("[%s/%s] %s %s %s - %s",
-		color.Cyan.AnsiFormat(fmt.Sprintf("%d", count)),
-		color.Cyan.AnsiFormat(fmt.Sprintf("%d", totalCount)),
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", s.counter.Load())),
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", s.totalCount)),
 		color.Yellow.AnsiFormat(s.name),
 		color.White.AnsiFormat("-"),
 		color.Blue.AnsiFormat(url),
@@ -87,14 +95,14 @@ func (s *Scanner) logResult(count uint64, totalCount uint64, url string, matched
 	fmt.Println(output)
 }
 
-func (s *Scanner) logError(count uint64, totalCount uint64, url string, err error) {
+func (s *Scanner) logError(url string, err error) {
 	if !s.verbose {
 		return
 	}
 
 	errorOutput := fmt.Sprintf("[%s/%s] %s %s %s - %s",
-		color.Cyan.AnsiFormat(fmt.Sprintf("%d", count)),
-		color.Cyan.AnsiFormat(fmt.Sprintf("%d", totalCount)),
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", s.counter.Load())),
+		color.Cyan.AnsiFormat(fmt.Sprintf("%d", s.totalCount)),
 		color.Yellow.AnsiFormat(s.name),
 		color.White.AnsiFormat("-"),
 		color.Blue.AnsiFormat(url),
