@@ -1,0 +1,23 @@
+{
+    "id": "git-config",
+    "name": "Git Config",
+    "output": "git-config.txt",
+    "request": {
+        "method": "GET",
+        "headers": {
+            "Accept": "text/plain",
+            "Accept-Charset": "UTF-8",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+        },
+        "timeout": 7
+    },
+    "match": {
+        "from": "body",
+        "type": "word",
+        "value": "[core]"
+    },
+    "paths": [".git/config"]
+}
