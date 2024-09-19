@@ -108,14 +108,16 @@ func initializeScanner(template *templates.Template, urls []string, totalCount u
 	scanner := core.NewScanner(requester, template.Match, fileOutput, template.Name, template.MatchFrom, args.Verbose, args.MatchOnly)
 
 	threadsChannel := make(chan struct{}, args.Threads)
+	targetsChannel := make(chan string, args.Threads)
+
+	go func() {
+		defer close(targetsChannel)
+		helpers.MergeURLAndPaths(urls, template.Paths, targetsChannel)
+	}()
+
 	var wg sync.WaitGroup
 
-	var targets []string
-	for _, url := range urls {
-		helpers.MergeURLAndPaths(url, template.Paths, &targets)
-	}
-
-	for _, target := range targets {
+	for target := range targetsChannel {
 		threadsChannel <- struct{}{}
 		wg.Add(1)
 		go func(t string) {

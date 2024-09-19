@@ -3,31 +3,32 @@ package helpers
 import (
 	"fmt"
 	"go-exposed-config-scanner/pkg/templates"
-	"reflect"
+	// "reflect"
 	"strings"
 )
 
 // MergeURLAndPaths merges a base URL with a list of paths and appends the resulting URLs to the provided slice.
-func MergeURLAndPaths(url string, paths []string, result any) {
-	ptr := reflect.ValueOf(result)
+func MergeURLAndPaths(urls []string, paths []string, result chan<- string) {
+	// ptr := reflect.ValueOf(result)
 
-	if ptr.Kind() != reflect.Ptr || ptr.Elem().Kind() != reflect.Slice {
-		panic("result must be a pointer to a slice")
-	}
-
-	url = strings.TrimSpace(url)
-	if !strings.Contains(url, "http") {
-		url = "http://" + url
-	}
-
-	for _, path := range paths {
-		path = strings.TrimSpace(path)
-		if !strings.HasSuffix(url, "/") {
-			url += "/"
+	// if ptr.Kind() != reflect.Ptr || ptr.Elem().Kind() != reflect.Slice {
+	// 	panic("result must be a pointer to a slice")
+	// }
+	for _, url := range urls {
+		url = strings.TrimSpace(url)
+		if !strings.Contains(url, "http") {
+			url = "http://" + url
 		}
 
-		finalURL := url + path
-		ptr.Elem().Set(reflect.Append(ptr.Elem(), reflect.ValueOf(finalURL)))
+		for _, path := range paths {
+			path = strings.TrimSpace(path)
+			if !strings.HasSuffix(url, "/") {
+				url += "/"
+			}
+
+			finalURL := url + path
+			result <- finalURL
+		}
 	}
 }
 
@@ -38,7 +39,7 @@ func ParseArgsForTemplates(id string, all bool, t *templates.Templates) ([]*temp
 	}
 
 	if id == "" && !all {
-		return nil, fmt.Errorf("You must provide a template ID or use the -all flag")
+		return nil, fmt.Errorf("you must provide a template ID or use the -all flag")
 	}
 	if !strings.Contains(id, ",") {
 		template, err := t.GetTemplateByID(id)
