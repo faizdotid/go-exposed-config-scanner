@@ -23,6 +23,7 @@ This project is a multi-threaded tool designed to scan URLs for exposed configur
 
    ```bash
    go mod tidy
+   cd cmd/go-scanner
    go build
    ```
 
