@@ -110,7 +110,6 @@ func initializeScanner(template *templates.Template, urls []string, totalCount u
 	targetsChannel := make(chan string, args.Threads)
 
 	go func() {
-		defer close(targetsChannel)
 		helpers.MergeURLAndPaths(urls, template.Paths, targetsChannel)
 	}()
 

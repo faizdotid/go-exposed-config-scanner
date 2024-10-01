@@ -53,8 +53,8 @@ func (s *Scanner) matchContent(r *http.Response) (bool, error) {
 func (s *Scanner) Scan(url string) {
 	resp, err := s.client.Do(url)
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.counter.Add(1)
-	s.mu.Unlock()
 	if err != nil {
 		s.logError(url, err)
 		return

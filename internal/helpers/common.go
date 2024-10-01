@@ -14,6 +14,7 @@ func MergeURLAndPaths(urls []string, paths []string, result chan<- string) {
 	// if ptr.Kind() != reflect.Ptr || ptr.Elem().Kind() != reflect.Slice {
 	// 	panic("result must be a pointer to a slice")
 	// }
+	defer close(result)
 	for _, url := range urls {
 		url = strings.TrimSpace(url)
 		if !strings.Contains(url, "http") {
