@@ -127,3 +127,4 @@ func initializeScanner(template *templates.Template, urls []string, totalCount u
 
 	wg.Wait()
 }
+
