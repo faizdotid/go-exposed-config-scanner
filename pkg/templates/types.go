@@ -14,7 +14,7 @@ type Template struct {
 	Name      string
 	Output    string
 	MatchFrom string
-	Match     matcher.Matcher
+	Matcher   matcher.IMatcher
 	Request   *Request
 }
 

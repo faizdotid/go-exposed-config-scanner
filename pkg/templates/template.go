@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"go-exposed-config-scanner/pkg/matcher"
+	"go-exposed-config-scanner/pkg/utils"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -49,32 +49,38 @@ func (t *Template) validateTimeoutRequest(data int) error {
 	return nil
 }
 
-func (t *Template) validateMatchRequest(from, types, value string) error {
-	if from != "body" && from != "headers" {
-		return errors.New("invalid from value")
+func (t Template) validateStatusCodeRequest(data string) []int {
+	if data == "" || data == "*" || data == "all" {
+		return []int{}
 	}
+	return utils.ExplodeString[int](data)
+}
+
+func (t Template) validateMatchRequest(types, value string) (matcher.IMatch, error) {
 
 	switch types {
 	case "regex":
-		t.Match = regexp.MustCompile(value)
+		return matcher.NewRegexMatcher(value), nil
 	case "word", "words":
-		t.Match = matcher.NewWordMatcher(value)
+		return matcher.NewWordMatcher(value), nil
 	case "json":
-		t.Match = matcher.NewJSONMatcher()
+		return matcher.NewJSONMatcher(), nil
 	case "binary":
-		t.Match = matcher.NewBinaryMatcher(value)
+		return matcher.NewBinaryMatcher(value), nil
 	default:
-		return errors.New("invalid match type")
+		return nil, errors.New("invalid match type")
 	}
-	return nil
 }
 
-func (t *Template) validateMatchFrom(data string) error {
-	if data != "body" && data != "headers" {
-		return errors.New("invalid matchFrom value")
+func (t Template) validateMatchFrom(data string) (matcher.MatchFrom, error) {
+	switch data {
+	case "body":
+		return matcher.Body, nil
+	case "headers", "header":
+		return matcher.Headers, nil
+	default:
+		return "", errors.New("invalid match from")
 	}
-	t.MatchFrom = data
-	return nil
 }
 
 func (t *Template) setHeadersRequest(data map[string]string) {
@@ -111,9 +117,10 @@ func (t *Template) UnmarshalJSON(data []byte) error {
 			Body    string            `json:"body"`
 		}
 		Match struct {
-			From  string `json:"from"`
-			Type  string `json:"type"`
-			Value string `json:"value"`
+			StatusCode json.RawMessage `json:"status_code"`
+			From       string          `json:"from"`
+			Type       string          `json:"type"`
+			Value      string          `json:"value"`
 		}
 		Paths []string `json:"paths"`
 	}
@@ -141,23 +148,33 @@ func (t *Template) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// set headers
-	t.setHeadersRequest(raw.Request.Headers)
-
-	// validate match
-	if err := t.validateMatchRequest(raw.Match.From, raw.Match.Type, raw.Match.Value); err != nil {
-		return err
-	}
-
-	// validate matchFrom
-	if err := t.validateMatchFrom(raw.Match.From); err != nil {
-		return err
-	}
-
 	// validate paths
 	if err := t.validatePathsRequest(raw.Paths); err != nil {
 		return err
 	}
+
+	// set headers
+	t.setHeadersRequest(raw.Request.Headers)
+
+	// validate status code
+	statusCodes := t.validateStatusCodeRequest(string(raw.Match.StatusCode))
+	// validate match
+	match, err := t.validateMatchRequest(raw.Match.Type, raw.Match.Value)
+	if err != nil {
+		return err
+	}
+
+	// validate matchFrom
+	matchFrom, err := t.validateMatchFrom(raw.Match.From)
+	if err != nil {
+		return err
+	}
+
+	t.Matcher = matcher.NewMatcher(
+		match,
+		statusCodes,
+		matchFrom,
+	)
 
 	return nil
 }
