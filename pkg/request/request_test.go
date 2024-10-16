@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRequest(t *testing.T) {
@@ -38,7 +39,7 @@ func TestRequest(t *testing.T) {
 	t.Run("TestPOST", func(t *testing.T) {
 		req := templates.Request{
 			Method:  "POST",
-			Timeout: 5,
+			Timeout: time.Duration(5) * time.Second,
 			Headers: http.Header{
 				"Content-Type": []string{"application/json"},
 			},
@@ -59,7 +60,7 @@ func TestRequest(t *testing.T) {
 	t.Run("TestHeaders", func(t *testing.T) {
 		req := templates.Request{
 			Method:  "HEAD",
-			Timeout: 5,
+			Timeout: 5 * time.Second,
 			Headers: http.Header{},
 			Body:    nil,
 		}
@@ -96,10 +97,12 @@ func TestRequestWithTemplate(t *testing.T) {
 		}
 
 		headers := fmt.Sprintf("%v", resp.Header)
-		if temp.Match.Match([]byte(headers)) {
-			t.Logf("URL: %s", resp.Request.URL.String())
-			t.Logf("Matched: %s", headers)
+		match, err := temp.Matcher.Match(resp)
+		if err != nil {
+			t.Errorf("Error matching response: %v", err)
 		}
+		t.Logf("Matched: %v", match)
+		t.Logf("Headers: %s", headers)
 
 	}
 }

@@ -2,10 +2,7 @@ package core
 
 import (
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -15,7 +12,7 @@ import (
 	"go-exposed-config-scanner/pkg/utils"
 )
 
-func NewScanner(c *request.Requester, m matcher.Matcher, o *os.File, n string, mf string, v bool, mo bool, counter *atomic.Uint64, totalCount uint64, mu *sync.Mutex) *Scanner {
+func NewScanner(c *request.Requester, m matcher.IMatcher, o *os.File, n string, mf string, v bool, mo bool, counter *atomic.Uint64, totalCount uint64, mu *sync.Mutex) *Scanner {
 	return &Scanner{
 		client:     c,
 		matcher:    m,
@@ -30,26 +27,6 @@ func NewScanner(c *request.Requester, m matcher.Matcher, o *os.File, n string, m
 	}
 }
 
-func (s *Scanner) matchContent(r *http.Response) (bool, error) {
-	switch strings.ToLower(s.matchFrom) {
-	case "body":
-		content, err := io.ReadAll(r.Body)
-		if err != nil {
-			return false, err
-		}
-		return s.matcher.Match(content), nil
-	case "headers":
-		for _, value := range r.Header {
-			if s.matcher.Match([]byte(strings.Join(value, ","))) {
-				return true, nil
-			}
-		}
-	default:
-		return false, fmt.Errorf("invalid matchFrom value: %s", s.matchFrom)
-	}
-	return false, nil
-}
-
 func (s *Scanner) Scan(url string) {
 	resp, err := s.client.Do(url)
 	s.mu.Lock()
@@ -60,8 +37,7 @@ func (s *Scanner) Scan(url string) {
 		return
 	}
 	defer resp.Body.Close()
-
-	matched, err := s.matchContent(resp)
+	matched, err := s.matcher.Match(resp)
 	if err != nil {
 		s.logError(url, err)
 		return
