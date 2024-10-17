@@ -33,7 +33,7 @@ This project is a multi-threaded tool designed to scan URLs for exposed configur
 
 - `-id`: Specify the template ID(s) to scan, comma-separated for multiple templates.
 - `-all`: Scan all available templates.
-- `-filelist`: List of URLs to scan.
+- `-list`: Path list of urls.
 - `-threads`: Number of threads to use for scanning, default 10 (***Threads will apllied for each templates***).
 - `-timeout`: Timeout for HTTP requests in seconds (***This will be applied to all templates***).
 - `-verbose`: Print error verbose.
@@ -45,13 +45,13 @@ This project is a multi-threaded tool designed to scan URLs for exposed configur
 1. **Scan using a specific template:**
 
    ```bash
-   ./go-exposed-config-scanner -filelist urls.txt -id template1
+   ./go-exposed-config-scanner -list urls.txt -id template1
    ```
 
 2. **Scan using all templates:**
 
    ```bash
-   ./go-exposed-config-scanner -filelist urls.txt -all
+   ./go-exposed-config-scanner -list urls.txt -all
    ```
 
 3. **Show available templates:**
