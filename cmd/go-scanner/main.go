@@ -113,7 +113,7 @@ func initializeScanner(opts *ScanOptions) {
 		log.Fatalf("Failed to create requester: %v", err)
 	}
 
-	outputFile := fmt.Sprintf("results/%s", opts.template.Name)
+	outputFile := fmt.Sprintf("results/%s", opts.template.Output)
 
 	scanner := core.NewScanner(
 		requester,
