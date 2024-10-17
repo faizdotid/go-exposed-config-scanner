@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
 
@@ -12,7 +11,7 @@ import (
 	"go-exposed-config-scanner/pkg/utils"
 )
 
-func NewScanner(c *request.Requester, m matcher.IMatcher, o *os.File, n string, mf string, v bool, mo bool, counter *atomic.Uint64, totalCount uint64, mu *sync.Mutex) *Scanner {
+func NewScanner(c *request.Requester, m matcher.IMatcher, o string, n string, mf string, v bool, mo bool, counter *atomic.Uint64, totalCount uint64, mu *sync.Mutex) *Scanner {
 	return &Scanner{
 		client:     c,
 		matcher:    m,
@@ -45,7 +44,7 @@ func (s *Scanner) Scan(url string) {
 	s.logResult(url, matched)
 
 	if matched {
-		utils.WriteFile(s.output, []byte(url))
+		utils.WriteResultToFile(s.output, url)
 	}
 }
 

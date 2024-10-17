@@ -3,7 +3,6 @@ package core
 import (
 	"go-exposed-config-scanner/pkg/matcher"
 	"go-exposed-config-scanner/pkg/request"
-	"os"
 	"sync"
 	"sync/atomic"
 )
@@ -13,7 +12,7 @@ type Scanner struct {
 	matchFrom  string
 	matcher    matcher.IMatcher
 	client     *request.Requester
-	output     *os.File
+	output     string
 	verbose    bool
 	matchOnly  bool
 	counter    *atomic.Uint64
