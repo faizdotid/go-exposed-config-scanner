@@ -50,7 +50,7 @@ func (t *Template) validateTimeoutRequest(data int) error {
 }
 
 func (t Template) validateStatusCodeRequest(data string) []int {
-	if data == "" || data == "*" || data == "all" {
+	if data == "" || data == "*" || data == "all" || data == "0" || data == "any" {
 		return []int{}
 	}
 	return utils.ExplodeString[int](data)
