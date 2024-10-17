@@ -6,9 +6,17 @@ import (
 	"strings"
 )
 
+// Deprecated: use WriteResultToFile instead
 func WriteFile(writer *os.File, data []byte) {
 	data = append(data, newLine...)
 	writer.Write(data)
+}
+
+// write data to a file
+func WriteResultToFile(output string, data string) {
+	file, _ := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	defer file.Close()
+	file.WriteString(data + string(newLine))
 }
 
 // generic function to convert any type to interface{}
