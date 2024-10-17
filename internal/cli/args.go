@@ -13,7 +13,7 @@ import (
 func init() {
 	flag.StringVar(&currentArgs.TemplateId, "id", "", "Template ID, comma-separated for multiple templates")
 	flag.BoolVar(&currentArgs.All, "all", false, "Scan all templates")
-	flag.StringVar(&currentArgs.FileList, "filelist", "", "Path to the filelist")
+	flag.StringVar(&currentArgs.List, "list", "", "Path list of urls")
 	flag.IntVar(&currentArgs.Threads, "threads", 10, "Number of threads to use")
 	flag.BoolVar(&currentArgs.Show, "show", false, "Show available templates")
 	flag.BoolVar(&currentArgs.MatchOnly, "match", false, "Print only match URLs")
@@ -30,7 +30,7 @@ func ParseArgs(templates templates.Templates) *Args {
 		os.Exit(0)
 	}
 
-	if currentArgs.FileList == "" {
+	if currentArgs.List == "" {
 		printUsageAndExit()
 	}
 
@@ -38,7 +38,7 @@ func ParseArgs(templates templates.Templates) *Args {
 }
 
 func printUsageAndExit() {
-	fmt.Println("Usage: go-scanner -filelist <list> [-templateId <template_id> | -all] [-threads <count>] [-show]")
+	fmt.Println("Usage: go-scanner -list <list> [-templateId <template_id> | -all] [-threads <count>] [-show]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
