@@ -2,7 +2,7 @@ package cli
 
 type Args struct {
 	TemplateId string
-	FileList   string
+	List   string
 	Threads    int
 	Timeout    int
 	MatchOnly  bool

@@ -11,7 +11,7 @@ import (
 type Scanner struct {
 	name       string
 	matchFrom  string
-	matcher    matcher.Matcher
+	matcher    matcher.IMatcher
 	client     *request.Requester
 	output     *os.File
 	verbose    bool
