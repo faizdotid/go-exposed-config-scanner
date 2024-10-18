@@ -97,7 +97,9 @@ func (t *Template) validatePathsRequest(data []string) error {
 	if len(data) == 0 {
 		return errors.New("paths must not be empty")
 	}
-	t.Paths = data
+	for _, path := range data {
+		t.Paths = append(t.Paths, strings.TrimPrefix(strings.TrimSpace(path), "/"))
+	}
 	return nil
 }
 
