@@ -24,6 +24,7 @@ type ScanOptions struct {
 	scannedURLCount *atomic.Uint64
 	mutex           *sync.Mutex
 	cliArgs         *cli.Args
+	threadLimiter   chan struct{}
 }
 
 func main() {
@@ -71,6 +72,7 @@ func main() {
 	var scannedURLCount atomic.Uint64
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
+	var threadLimiter = make(chan struct{}, cliArgs.Threads)
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -87,6 +89,7 @@ func main() {
 					scannedURLCount: &scannedURLCount,
 					mutex:           &mutex,
 					cliArgs:         cliArgs,
+					threadLimiter:   threadLimiter,
 				},
 			)
 		}(template)
@@ -128,7 +131,6 @@ func initializeScanner(opts *ScanOptions) {
 		opts.mutex,
 	)
 
-	threadLimiter := make(chan struct{}, opts.cliArgs.Threads)
 	targetURLChannel := make(chan string, len(opts.targetURLs)*len(opts.template.Paths))
 
 	go func() {
@@ -139,11 +141,11 @@ func initializeScanner(opts *ScanOptions) {
 	var wg sync.WaitGroup
 
 	for targetURL := range targetURLChannel {
-		threadLimiter <- struct{}{}
+		opts.threadLimiter <- struct{}{} // acquire the thread limiter
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			defer func() { <-threadLimiter }() // release the thread limiter
+			defer func() { <-opts.threadLimiter }() // release the thread limiter
 			scanner.Scan(url)
 		}(targetURL)
 	}

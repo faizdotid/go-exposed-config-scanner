@@ -34,7 +34,7 @@ This project is a multi-threaded tool designed to scan URLs for exposed configur
 - `-id`: Specify the template ID(s) to scan, comma-separated for multiple templates.
 - `-all`: Scan all available templates.
 - `-list`: Path list of urls.
-- `-threads`: Number of threads to use for scanning, default 10 (***Threads will apllied for each templates***).
+- `-threads`: Number of threads to use for scanning, default 10
 - `-timeout`: Timeout for HTTP requests in seconds (***This will be applied to all templates***).
 - `-verbose`: Print error verbose.
 - `-match`: Print only match URLs.
