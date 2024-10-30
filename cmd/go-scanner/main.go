@@ -131,7 +131,7 @@ func initializeScanner(opts *ScanOptions) {
 		opts.mutex,
 	)
 
-	targetURLChannel := make(chan string, len(opts.targetURLs)*len(opts.template.Paths))
+	targetURLChannel := make(chan string, opts.cliArgs.Threads)
 
 	go func() {
 		helpers.MergeURLAndPaths(opts.targetURLs, opts.template.Paths, targetURLChannel)
@@ -144,9 +144,8 @@ func initializeScanner(opts *ScanOptions) {
 		opts.threadLimiter <- struct{}{} // acquire the thread limiter
 		wg.Add(1)
 		go func(url string) {
-			defer wg.Done()
-			defer func() { <-opts.threadLimiter }() // release the thread limiter
-			scanner.Scan(url)
+			scanner.Scan(url, &wg)
+			<-opts.threadLimiter // release the thread limiter
 		}(targetURL)
 	}
 

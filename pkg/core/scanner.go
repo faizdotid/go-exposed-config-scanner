@@ -26,7 +26,8 @@ func NewScanner(c *request.Requester, m matcher.IMatcher, o string, n string, mf
 	}
 }
 
-func (s *Scanner) Scan(url string) {
+func (s *Scanner) Scan(url string, wg *sync.WaitGroup) {
+	defer wg.Done()
 	resp, err := s.client.Do(url)
 	s.mu.Lock()
 	s.counter.Add(1)
