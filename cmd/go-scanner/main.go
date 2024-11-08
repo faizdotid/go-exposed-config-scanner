@@ -8,6 +8,7 @@ import (
 	"go-exposed-config-scanner/pkg/core"
 	"go-exposed-config-scanner/pkg/request"
 	"go-exposed-config-scanner/pkg/templates"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -29,6 +30,9 @@ type ScanOptions struct {
 
 func main() {
 	scanStartTime := time.Now()
+
+	// set log into discard
+	log.SetOutput(io.Discard)
 
 	// load available templates
 	availableTemplates := templates.Templates{}
