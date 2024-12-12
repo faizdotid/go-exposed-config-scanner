@@ -52,6 +52,9 @@ func ShowTemplates(templateList templates.Templates) {
 
 	// Center text within a column and apply colors
 	centerText := func(text string, width int, colors ...color.Color) string {
+		if len(text) >= width {
+			text = text[:width-3] + "..."
+		}
 		padding := (width - len(text)) / 2
 		currentStr := strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-len(text)-padding)
 		return color.Coloring(currentStr, colors...)
