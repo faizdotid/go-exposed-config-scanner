@@ -8,17 +8,7 @@ import (
 	"strings"
 )
 
-// return template by id
-func (t Templates) GetTemplateByID(id string) (*Template, error) {
-	for _, template := range t {
-		if template.ID == id {
-			return template, nil
-		}
-	}
-	return nil, ErrTemplateNotFound
-}
-
-// load template from a specific directory
+// LoadTemplate loads templates from a specific directory
 func (t *Templates) LoadTemplate(dir string) error {
 	if dir == "" {
 		dir = "templates"
@@ -28,20 +18,25 @@ func (t *Templates) LoadTemplate(dir string) error {
 		if err != nil {
 			return fmt.Errorf("error accessing path %s: %w", path, err)
 		}
-		if !info.IsDir() && filepath.Ext(path) == ".json" && !strings.Contains(path, "example.json") && !strings.Contains(path, "README.md") {
+
+		if !info.IsDir() &&
+			filepath.Ext(path) == ".json" &&
+			!strings.Contains(path, "example.json") &&
+			!strings.Contains(path, "README.md") {
 			if err := t.readFileTemplate(path); err != nil {
 				return fmt.Errorf("error reading template file %s: %w", path, err)
 			}
 		}
 		return nil
 	})
+
 	if err != nil {
 		return fmt.Errorf("error walking the path %s: %w", dir, err)
 	}
 	return nil
 }
 
-// read file template
+// readFileTemplate reads and parses a single template file
 func (t *Templates) readFileTemplate(path string) error {
 	file, err := os.ReadFile(path)
 	if err != nil {
@@ -55,4 +50,14 @@ func (t *Templates) readFileTemplate(path string) error {
 
 	*t = append(*t, template)
 	return nil
+}
+
+// GetTemplateByID returns a template by its ID
+func (t Templates) GetTemplateByID(id string) (*Template, error) {
+	for _, template := range t {
+		if template.ID == id {
+			return template, nil
+		}
+	}
+	return nil, ErrTemplateNotFound
 }
