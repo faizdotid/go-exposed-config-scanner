@@ -67,10 +67,9 @@ func BenchmarkTest(b *testing.B) {
 			"key": []string{"value"},
 		},
 		StatusCode: 200,
-
 	}
 	for i := 0; i < b.N; i++ {
 		m.Match(resp)
 	}
-	
+
 }

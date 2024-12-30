@@ -19,7 +19,6 @@ func (m *Matcher) matchBody(data *http.Response) (bool, error) {
 	if data.Body == nil {
 		return false, nil
 	}
-	defer data.Body.Close()
 
 	bufPtr := bufferPool.Get().(*[]byte)
 
