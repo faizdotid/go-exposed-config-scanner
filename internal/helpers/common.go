@@ -6,27 +6,56 @@ import (
 	"strings"
 )
 
-// MergeURLAndPaths merges a base URL with a list of paths and appends the resulting URLs to the provided slice.
 func MergeURLAndPaths(urls []string, paths []string, result chan<- string) {
-	// ptr := reflect.ValueOf(result)
+	initialSize := 1024
 
-	// if ptr.Kind() != reflect.Ptr || ptr.Elem().Kind() != reflect.Slice {
-	// 	panic("result must be a pointer to a slice")
-	// }
+	builder := strings.Builder{}
+
 	for _, url := range urls {
-		url = strings.TrimSpace(url)
-		if !strings.Contains(url, "http") {
-			url = "http://" + url
+		baseURL := strings.TrimSpace(url)
+
+		requiredCapacity := len(baseURL)
+		if !strings.Contains(baseURL, "http") {
+			requiredCapacity += len("http://")
+		}
+		if !strings.HasSuffix(baseURL, "/") {
+			requiredCapacity++
 		}
 
+		maxPathLen := 0
 		for _, path := range paths {
-			path = strings.TrimSpace(path)
-			if !strings.HasSuffix(url, "/") {
-				url += "/"
+			if len(path) > maxPathLen {
+				maxPathLen = len(path)
 			}
+		}
 
-			finalURL := url + path
-			result <- finalURL
+		totalRequired := requiredCapacity + maxPathLen
+
+		if totalRequired > initialSize {
+			builder.Grow(totalRequired)
+		} else {
+			builder.Grow(initialSize)
+		}
+
+		if !strings.Contains(baseURL, "http") {
+			builder.WriteString("http://")
+			builder.WriteString(baseURL)
+		} else {
+			builder.WriteString(baseURL)
+		}
+
+		if !strings.HasSuffix(builder.String(), "/") {
+			builder.WriteString("/")
+		}
+
+		baseURLWithSlash := builder.String()
+		builder.Reset()
+
+		for _, path := range paths {
+			builder.WriteString(baseURLWithSlash)
+			builder.WriteString(strings.TrimSpace(path))
+			result <- builder.String()
+			builder.Reset()
 		}
 	}
 }
