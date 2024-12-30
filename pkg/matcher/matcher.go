@@ -16,17 +16,44 @@ func NewMatcher(m IMatch, statusCodes []int, matchFrom MatchFrom) *Matcher {
 }
 
 func (m *Matcher) matchBody(data *http.Response) (bool, error) {
-	buf, err := io.ReadAll(data.Body)
-	if err != nil {
-		return false, err
+	if data.Body == nil {
+		return false, nil
 	}
-	match := m.IMatch.Match(buf)
-	return match, nil
+	defer data.Body.Close()
+
+	bufPtr := bufferPool.Get().(*[]byte)
+
+	defer func() {
+		*bufPtr = (*bufPtr)[:0]
+		bufferPool.Put(bufPtr)
+	}()
+
+	reader := io.LimitReader(data.Body, MaxBodySize)
+	n, err := io.ReadFull(reader, *bufPtr)
+
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return false, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	*bufPtr = (*bufPtr)[:n]
+	return m.IMatch.Match(*bufPtr), nil
 }
 
-func (m *Matcher) matchHeaders(data *http.Response) (bool, error) {
-	for _, value := range data.Header {
-		if m.IMatch.Match([]byte(strings.Join(value, ","))) {
+func (m *Matcher) matchHeaders(resp *http.Response) (bool, error) {
+	var builder strings.Builder
+	for key, values := range resp.Header {
+		builder.Reset()
+		builder.WriteString(key)
+		builder.WriteString(": ")
+
+		for i, v := range values {
+			if i > 0 {
+				builder.WriteString(", ")
+			}
+			builder.WriteString(v)
+		}
+
+		if m.IMatch.Match([]byte(builder.String())) {
 			return true, nil
 		}
 	}
@@ -34,17 +61,22 @@ func (m *Matcher) matchHeaders(data *http.Response) (bool, error) {
 }
 
 func (m *Matcher) Match(data *http.Response) (bool, error) {
+	if data == nil {
+		return false, fmt.Errorf("response is nil")
+	}
+
 	if !m.StatusCodeMatch.Match(data) {
 		return false, nil
 	}
 
-	switch m.MatchFrom {
-	case Body:
-		return m.matchBody(data)
-	case Headers:
-		return m.matchHeaders(data)
-	default:
-		return false, fmt.Errorf("invalid matchFrom value: %s", m.MatchFrom)
+	matchers := map[MatchFrom]func(*http.Response) (bool, error){
+		Body:    m.matchBody,
+		Headers: m.matchHeaders,
 	}
 
+	if matcher, ok := matchers[m.MatchFrom]; ok {
+		return matcher(data)
+	}
+
+	return false, fmt.Errorf("unsupported match type: %s", m.MatchFrom)
 }

@@ -3,20 +3,28 @@ package matcher
 import (
 	"net/http"
 	"regexp"
+	"sync"
 )
 
-type MatchFrom string
-
+// Constants
 const (
 	Body    MatchFrom = "body"
 	Headers MatchFrom = "headers"
+
+	MaxBodySize int64 = 10 << 20 // 10MB
+	BufferSize  int64 = 32 << 10 // 32KB
 )
 
-type Matcher struct {
-	IMatch
-	*StatusCodeMatch
-	MatchFrom
-}
+var (
+	bufferPool = sync.Pool{
+		New: func() interface{} {
+			b := make([]byte, BufferSize)
+			return &b
+		},
+	}
+)
+
+type MatchFrom string
 
 type IMatch interface {
 	Match([]byte) bool
@@ -24,6 +32,16 @@ type IMatch interface {
 
 type IMatcher interface {
 	Match(*http.Response) (bool, error)
+}
+
+type Matcher struct {
+	IMatch
+	*StatusCodeMatch
+	MatchFrom
+}
+
+type StatusCodeMatch struct {
+	statusCodes map[int]struct{}
 }
 
 type WordMatch struct {
@@ -35,10 +53,6 @@ type BinaryMatch struct {
 }
 
 type JSONMatch struct{}
-
-type StatusCodeMatch struct {
-	statusCodes map[int]struct{}
-}
 
 type RegexMatch struct {
 	reg *regexp.Regexp

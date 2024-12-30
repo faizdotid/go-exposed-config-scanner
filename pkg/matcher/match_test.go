@@ -26,7 +26,6 @@ func TestMatcher(t *testing.T) {
 	// 		t.Errorf("Expected match, got no match")
 	// 	}
 	// })
-
 	t.Run("TestHeaderMatcher", func(t *testing.T) {
 		m := matcher.NewMatcher(
 			matcher.NewWordMatcher("value"),
@@ -54,4 +53,24 @@ func TestMatcher(t *testing.T) {
 			t.Errorf("Expected match, got no match")
 		}
 	})
+}
+
+func BenchmarkTest(b *testing.B) {
+	// test word matcher
+	m := matcher.NewMatcher(
+		matcher.NewWordMatcher("value"),
+		[]int{123, 200},
+		matcher.Headers,
+	)
+	resp := &http.Response{
+		Header: http.Header{
+			"key": []string{"value"},
+		},
+		StatusCode: 200,
+
+	}
+	for i := 0; i < b.N; i++ {
+		m.Match(resp)
+	}
+	
 }

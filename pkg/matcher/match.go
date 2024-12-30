@@ -65,25 +65,39 @@ func (m *WordMatch) Match(data []byte) bool {
 }
 
 func NewWordMatcher(contains string) *WordMatch {
-	var each []string
-	var words []string = strings.Split(contains, ",")
-	for index, word := range words {
-		curr := strings.TrimSpace(word)
-		if curr[len(curr)-1] == '\\' {
-			curr = curr[:len(curr)-1] + "," + strings.TrimSpace(words[index+1])
-		}
-		each = append(each, curr)
+	if contains == "" {
+		return &WordMatch{contains: nil}
 	}
+
+	words := strings.Split(contains, ",")
+	each := make([]string, 0, len(words))
+	var builder strings.Builder
+	builder.Grow(len(contains)) // Pre-allocate builder capacity
+
+	for i := 0; i < len(words); i++ {
+		curr := strings.TrimSpace(words[i])
+		if curr == "" {
+			continue
+		}
+
+		if curr[len(curr)-1] == '\\' && i+1 < len(words) {
+			builder.Reset()
+			builder.WriteString(curr[:len(curr)-1])
+			builder.WriteRune(',')
+			builder.WriteString(strings.TrimSpace(words[i+1]))
+			each = append(each, builder.String())
+			i++
+		} else {
+			each = append(each, curr)
+		}
+	}
+
 	return &WordMatch{contains: each}
 }
 
 // JSON
 func (m *JSONMatch) Match(data []byte) bool {
-	var obj map[string]interface{}
-	if err := json.Unmarshal(data, &obj); err != nil {
-		return false
-	}
-	return true
+	return json.Valid(data)
 }
 
 func NewJSONMatcher() *JSONMatch {
