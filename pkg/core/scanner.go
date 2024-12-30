@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -37,11 +36,6 @@ func (s *Scanner) Scan(ctx context.Context, url string, wg *sync.WaitGroup) {
 	s.counter.Add(1)
 
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			s.logError(url, fmt.Errorf("timeout"))
-			return
-		}
-
 		s.logError(url, err)
 		return
 	}

@@ -72,7 +72,7 @@ func NewWordMatcher(contains string) *WordMatch {
 	words := strings.Split(contains, ",")
 	each := make([]string, 0, len(words))
 	var builder strings.Builder
-	builder.Grow(len(contains)) // Pre-allocate builder capacity
+	builder.Grow(len(contains))
 
 	for i := 0; i < len(words); i++ {
 		curr := strings.TrimSpace(words[i])

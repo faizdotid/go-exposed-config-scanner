@@ -19,23 +19,22 @@ func (m *Matcher) matchBody(data *http.Response) (bool, error) {
 	if data.Body == nil {
 		return false, nil
 	}
+	defer data.Body.Close()
 
 	bufPtr := bufferPool.Get().(*[]byte)
-
+	buf := *bufPtr
 	defer func() {
-		*bufPtr = (*bufPtr)[:0]
+		buf = buf[:0]
 		bufferPool.Put(bufPtr)
 	}()
 
 	reader := io.LimitReader(data.Body, MaxBodySize)
-	n, err := io.ReadFull(reader, *bufPtr)
-
-	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+	body, err := io.ReadAll(reader)
+	if err != nil {
 		return false, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	*bufPtr = (*bufPtr)[:n]
-	return m.IMatch.Match(*bufPtr), nil
+	return m.IMatch.Match(body), nil
 }
 
 func (m *Matcher) matchHeaders(resp *http.Response) (bool, error) {
