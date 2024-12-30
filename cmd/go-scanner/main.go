@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"go-exposed-config-scanner/internal/cli"
 	"go-exposed-config-scanner/internal/helpers"
+	"go-exposed-config-scanner/internal/utils"
 	"go-exposed-config-scanner/pkg/color"
 	"go-exposed-config-scanner/pkg/core"
 	"go-exposed-config-scanner/pkg/request"
@@ -18,53 +20,38 @@ import (
 	"time"
 )
 
-type ScanOptions struct {
-	template        *templates.Template
-	targetURLs      []string
-	totalURLCount   uint64
-	scannedURLCount *atomic.Uint64
-	mutex           *sync.Mutex
-	cliArgs         *cli.Args
-	threadLimiter   chan struct{}
+func init() {
+	log.SetOutput(io.Discard)
 }
 
 func main() {
+	ctx := context.Background()
 	scanStartTime := time.Now()
 
-	// set log into discard
-	log.SetOutput(io.Discard)
-
-	// load available templates
-	availableTemplates := templates.Templates{}
-	if err := availableTemplates.LoadTemplate("templates"); err != nil {
-		log.Fatalf("Failed to load templates: %v", err)
+	appTemplates := templates.Templates{}
+	if err := appTemplates.LoadTemplate("templates"); err != nil {
+		log.Fatalf("failed to load templates: %v", err)
 	}
 
-	// parse command line arguments
-	cliArgs := cli.ParseArgs(availableTemplates)
-
-	// filtering templates based on the provided arguments
-	selectedTemplates, err := helpers.ParseArgsForTemplates(cliArgs.TemplateId, cliArgs.All, &availableTemplates)
+	args := cli.ParseArgs(&appTemplates)
+	targetTemplates, err := helpers.ParseArgsForTemplates(args.TemplateId, args.All, &appTemplates)
 	if err != nil {
-		log.Fatalf("Failed to parse args for templates: %v", err)
+		log.Fatalf("failed to filter templates: %v", err)
 	}
 
-	// create results directory if not exists
 	if _, err := os.Stat("results"); os.IsNotExist(err) {
 		os.Mkdir("results", 0755)
 	}
 
-	// read target urls from file
-	fileContent, err := os.ReadFile(cliArgs.List)
+	fileContent, err := os.ReadFile(args.List)
 	if err != nil {
-		log.Fatalf("Failed to read file: %v", err)
+		log.Fatalf("failed to read file: %v", err)
 	}
 
 	targetURLs := strings.Split(strings.TrimSpace(string(fileContent)), "\n")
 
-	// calculate total url to be scanned
 	var totalURLCount uint64
-	for _, template := range selectedTemplates {
+	for _, template := range targetTemplates {
 		totalURLCount += uint64(len(targetURLs)) * uint64(len(template.Paths))
 	}
 
@@ -74,32 +61,32 @@ func main() {
 		color.Yellow.AnsiFormat("Starting scan..."))
 
 	var scannedURLCount atomic.Uint64
-	var mutex sync.Mutex
 	var wg sync.WaitGroup
-	var threadLimiter = make(chan struct{}, cliArgs.Threads)
+	var semaphore = make(chan struct{}, args.Threads)
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU() - 1)
 
-	// initialize scanner for each template
-	wg.Add(len(selectedTemplates))
-	for _, template := range selectedTemplates {
+	wg.Add(len(targetTemplates))
+
+	maxIdleConns := args.Threads / len(targetTemplates)
+	for _, template := range targetTemplates {
 		go func(t *templates.Template) {
 			defer wg.Done()
 			initializeScanner(
-				&ScanOptions{
-					template:        t,
-					targetURLs:      targetURLs,
-					totalURLCount:   totalURLCount,
-					scannedURLCount: &scannedURLCount,
-					mutex:           &mutex,
-					cliArgs:         cliArgs,
-					threadLimiter:   threadLimiter,
+				ctx,
+				&utils.ScanOptions{
+					Template:        t,
+					TargetURLs:      targetURLs,
+					TotalURLCount:   totalURLCount,
+					ScannedURLCount: &scannedURLCount,
+					CliArgs:         args,
+					Semaphore:       semaphore,
 				},
+				maxIdleConns,
 			)
 		}(template)
 	}
 
-	// wait all goroutines to finish
 	wg.Wait()
 
 	scanDuration := time.Since(scanStartTime)
@@ -109,47 +96,45 @@ func main() {
 		color.Yellow.AnsiFormat(fmt.Sprintf("Elapsed time: %s", scanDuration)))
 }
 
-// initializeScanner sets up and runs the scan for a specific template using multiple threads
-func initializeScanner(opts *ScanOptions) {
-	if opts.cliArgs.Timeout == 0 && opts.template.Request.Timeout == 0 {
-		opts.template.Request.Timeout = time.Duration(opts.cliArgs.Timeout) * time.Second
+func initializeScanner(ctx context.Context, opts *utils.ScanOptions, maxIdleConns int) {
+	if opts.CliArgs.Timeout == 0 && opts.Template.Request.Timeout == 0 {
+		opts.Template.Request.Timeout = time.Duration(opts.CliArgs.Timeout) * time.Second
 	}
 
-	requester, err := request.NewRequester(*opts.template.Request)
+	requester, err := request.NewRequester(*opts.Template.Request, maxIdleConns)
 	if err != nil {
 		log.Fatalf("Failed to create requester: %v", err)
 	}
 
-	outputFile := fmt.Sprintf("results/%s", opts.template.Output)
+	outputFile := fmt.Sprintf("results/%s", opts.Template.Output)
 
 	scanner := core.NewScanner(
 		requester,
-		opts.template.Matcher,
+		opts.Template.Matcher,
 		outputFile,
-		opts.template.Name,
-		opts.template.MatchFrom,
-		opts.cliArgs.Verbose,
-		opts.cliArgs.MatchOnly,
-		opts.scannedURLCount,
-		opts.totalURLCount,
-		opts.mutex,
+		opts.Template.Name,
+		opts.Template.MatchFrom,
+		opts.CliArgs.Verbose,
+		opts.CliArgs.MatchOnly,
+		opts.ScannedURLCount,
+		opts.TotalURLCount,
 	)
 
-	targetURLChannel := make(chan string, opts.cliArgs.Threads)
+	targetURLChannel := make(chan string, opts.CliArgs.Threads)
 
 	go func() {
-		helpers.MergeURLAndPaths(opts.targetURLs, opts.template.Paths, targetURLChannel)
+		helpers.MergeURLAndPaths(opts.TargetURLs, opts.Template.Paths, targetURLChannel)
 		close(targetURLChannel)
 	}()
 
 	var wg sync.WaitGroup
 
 	for targetURL := range targetURLChannel {
-		opts.threadLimiter <- struct{}{} // acquire the thread limiter
+		opts.Semaphore <- struct{}{}
 		wg.Add(1)
 		go func(url string) {
-			scanner.Scan(url, &wg)
-			<-opts.threadLimiter // release the thread limiter
+			scanner.Scan(ctx, url, &wg)
+			<-opts.Semaphore
 		}(targetURL)
 	}
 

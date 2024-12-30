@@ -12,17 +12,16 @@ import (
 
 func init() {
 	flag.StringVar(&currentArgs.TemplateId, "id", "", "Template ID, comma-separated for multiple templates")
-	flag.BoolVar(&currentArgs.All, "all", false, "Scan all templates")
 	flag.StringVar(&currentArgs.List, "list", "", "Path list of urls")
 	flag.IntVar(&currentArgs.Threads, "threads", 10, "Number of threads to use")
+	flag.IntVar(&currentArgs.Timeout, "timeout", 0, "Timeout for HTTP requests (It will be applied to all templates)")
+	flag.BoolVar(&currentArgs.All, "all", false, "Scan all templates")
 	flag.BoolVar(&currentArgs.Show, "show", false, "Show available templates")
 	flag.BoolVar(&currentArgs.MatchOnly, "match", false, "Print only match URLs")
 	flag.BoolVar(&currentArgs.Verbose, "verbose", false, "Print errors verbose")
-	flag.IntVar(&currentArgs.Timeout, "timeout", 0, "Timeout for HTTP requests (It will be applied to all templates)")
-
 }
 
-func ParseArgs(templates templates.Templates) *Args {
+func ParseArgs(templates *templates.Templates) *Args {
 	flag.Parse()
 
 	if currentArgs.Show {
@@ -33,7 +32,6 @@ func ParseArgs(templates templates.Templates) *Args {
 	if currentArgs.List == "" {
 		printUsageAndExit()
 	}
-
 	return &currentArgs
 }
 
@@ -43,8 +41,8 @@ func printUsageAndExit() {
 	os.Exit(1)
 }
 
-func ShowTemplates(templateList templates.Templates) {
-	if len(templateList) == 0 {
+func ShowTemplates(templateList *templates.Templates) {
+	if len(*templateList) == 0 {
 		fmt.Println(color.Coloring("No templates found", color.Red, color.Bold))
 		return
 	}
@@ -70,7 +68,7 @@ func ShowTemplates(templateList templates.Templates) {
 	)
 
 	fmt.Println(strings.Repeat("-", (columnWidth*4+4)+6) + "|")
-	for idx, tmpl := range templateList {
+	for idx, tmpl := range *templateList {
 		joinedPaths := truncateString(strings.Join(tmpl.Paths, ", "), columnWidth-5)
 
 		fmt.Printf("|%-5s|%-*s|%-*s|%-*s|%-*s|\n",
