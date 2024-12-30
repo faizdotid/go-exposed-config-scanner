@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -11,7 +13,7 @@ import (
 	"go-exposed-config-scanner/pkg/utils"
 )
 
-func NewScanner(c *request.Requester, m matcher.IMatcher, o string, n string, mf string, v bool, mo bool, counter *atomic.Uint64, totalCount uint64, mu *sync.Mutex) *Scanner {
+func NewScanner(c *request.Requester, m matcher.IMatcher, o string, n string, mf string, v bool, mo bool, counter *atomic.Uint64, totalCount uint64) *Scanner {
 	return &Scanner{
 		client:     c,
 		matcher:    m,
@@ -22,21 +24,29 @@ func NewScanner(c *request.Requester, m matcher.IMatcher, o string, n string, mf
 		matchOnly:  mo,
 		counter:    counter,
 		totalCount: totalCount,
-		mu:         mu,
 	}
 }
 
-func (s *Scanner) Scan(url string, wg *sync.WaitGroup) {
+func (s *Scanner) Scan(ctx context.Context, url string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	resp, err := s.client.Do(url)
-	s.mu.Lock()
+
+	ctx, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	defer cancel()
+
+	resp, err := s.client.Do(ctx, url)
 	s.counter.Add(1)
-	s.mu.Unlock()
+
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			s.logError(url, fmt.Errorf("timeout"))
+			return
+		}
+
 		s.logError(url, err)
 		return
 	}
 	defer resp.Body.Close()
+
 	matched, err := s.matcher.Match(resp)
 	if err != nil {
 		s.logError(url, err)
@@ -82,7 +92,8 @@ func (s *Scanner) logError(url string, err error) {
 		color.Yellow.AnsiFormat(s.name),
 		color.White.AnsiFormat("-"),
 		color.Blue.AnsiFormat(url),
-		color.Red.AnsiFormat(err.Error()))
+		color.Red.AnsiFormat(err.Error()),
+	)
 
 	fmt.Println(errorOutput)
 }

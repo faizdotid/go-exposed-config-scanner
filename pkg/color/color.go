@@ -19,6 +19,10 @@ func (c Color) parseColor(buffer []byte, color Color) []byte {
 
 // AnsiFormat function
 func (c Color) AnsiFormat(data string, colors ...Color) string {
+	if len(data) == 0 {
+		return ""
+	}
+
 	if c != 0 {
 		colors = append(colors, c)
 	}
