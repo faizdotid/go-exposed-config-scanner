@@ -3,3 +3,4 @@ results/*
 !templates/README.md
 !templates/example.json
 test.txt
+.DS_Store
