@@ -25,7 +25,9 @@ func NewRequester(req templates.Request, maxIdleConns int) (*Requester, error) {
 	httpReq.Header = headers
 
 	transport := &http.Transport{
-		MaxIdleConns: maxIdleConns,
+		MaxIdleConns:       0,
+		DisableKeepAlives:  false,
+		DisableCompression: true,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
